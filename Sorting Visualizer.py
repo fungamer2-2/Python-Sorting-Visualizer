@@ -87,6 +87,8 @@ class Visualizer():
 			self.marks.extend([-1] * (n - len(self.marks)))
 			
 	def mark(self, id, index):
+		if not isinstance(index, int):
+			raise TypeError("index must be an int")
 		self._ensure_mark_capacity(id + 1)
 		self.marks[id] = index
 		
@@ -210,11 +212,11 @@ def BubbleSort(array, vis):
 def SelectionSort(array, vis):
 	for i in range(len(array) - 1):
 		m = i
-		vis.mark(3, array)
+		vis.mark(3, i)
 		for j in range(i + 1, len(array)):
-			if vis.compare_indices(array, j, m, 3, True) < 0:
+			if vis.compare_indices(array, j, m, 4, True) < 0:
 				m = j
-		vis.swap(array, i, m, 3, True)	
+		vis.swap(array, i, m, 4, True)	
 
 @SortingAlgorithm("Insertion Sort")
 def InsertionSort(array, vis):
