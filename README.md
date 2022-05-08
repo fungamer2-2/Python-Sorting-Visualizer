@@ -1,3 +1,4 @@
 # Python-Sorting-Visualizer
 A sorting visualizer written in Python<br >
-Note: Currently a work in progress
+The `tkinter` module is required to run the visualizer. If you don't have it, run `pip install tk` to install it.
+Currently a work in progress
