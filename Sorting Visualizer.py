@@ -20,6 +20,8 @@ class Visualizer():
 		self.marks = []
 		self.delay_count = 0
 		self.sleep_ratio = 1
+		self.aux_arrays = []
+		self.aux_rects = []
 		
 	def set_main_array(self, arr):
 		self.main_array = arr
@@ -28,12 +30,7 @@ class Visualizer():
 		self.marks = []
 		width = self.canvas.winfo_width()
 		height = self.canvas.winfo_height()
-		self.canvas.delete("all")
-		for i in range(len(arr)):
-			x = width * (i / len(arr))
-			bar = height * (arr[i] / len(arr))
-			self.rects[i] = self.canvas.create_rectangle(width * (i / len(arr)), height, width * ((i + 1) / len(arr)), height - bar, fill="#ffffff", outline="")
-		self.canvas.update()
+		self.update()
 		
 	def reset_stats(self):
 		self.comps = 0
@@ -47,11 +44,14 @@ class Visualizer():
 		self.stat_var.set(f"Swaps: {self.swaps}\nComparisons: {self.comps}\nMain Array Writes: {self.writes}\nAuxiliary Array Writes: {self.aux_writes}\nAuxiliary Memory: {self.extra_space} items")
 		
 	def update(self):
+		arr = self.main_array
 		width = self.canvas.winfo_width()
 		height = self.canvas.winfo_height()
+		height_ratio = len(self.aux_arrays) + 1
+		self.canvas.delete("all")
 		for i in range(len(arr)):
 			x = width * i / len(arr)
-			bar = height * arr[i] / len(arr)
+			bar = height / height_ratio * arr[i] / len(arr)
 			marked = any(mark == i for mark in self.marks)
 			if i < self.mark_finish:
 				color = "#00ff00"
@@ -59,13 +59,20 @@ class Visualizer():
 				color = "red"
 			else:
 				color = "red" if marked else "white"
-			self.canvas.itemconfig(self.rects[i], fill=color)
-			self.canvas.coords(self.rects[i], width * (i / len(arr)), height, width * ((i + 1) / len(arr)), height - bar)
+			self.canvas.create_rectangle(self.rects[i], width * (i / len(arr)), height, width * ((i + 1) / len(arr)), height - bar, fill=color, outline="")
+		for j in range(len(self.aux_arrays)):
+			arr = self.aux_arrays[j]
+			for i in range(len(arr)):
+				x = width * i / len(arr)
+				begin = height - (height * (j + 1) / height_ratio)
+				bar = height / height_ratio * arr[i] / len(arr)
+				self.canvas.create_rectangle(self.rects[i], width * (i / len(arr)), begin, width * ((i + 1) / len(arr)), begin - bar, fill="white", outline="")
 		self.update_statistics()
 		self.canvas.update()
 		
 	def display_finish_animation(self):
 		self.clear_all_marks()
+		self.aux_arrays.clear()
 		self.sleep_ratio = 1
 		for i in range(len(self.main_array)):
 			self.mark_finish = i
@@ -85,12 +92,21 @@ class Visualizer():
 	def _ensure_mark_capacity(self, n):
 		if len(self.marks) < n:
 			self.marks.extend([-1] * (n - len(self.marks)))
-			
+	
 	def mark(self, id, index):
 		if not isinstance(index, int):
 			raise TypeError("index must be an int")
 		self._ensure_mark_capacity(id + 1)
 		self.marks[id] = index
+		
+	def clear_mark(self, id):
+		self.marks[id] = -1
+		if id == len(self.marks) - 1:
+			last = next((i for i in reversed(range(len(self.marks))) if self.marks[id] != -1), None)
+			if last is None:
+				self.marks.clear()
+			else:
+				del self.marks[last+1:]
 		
 	def clear_all_marks(self):
 		self.marks = []
@@ -128,18 +144,22 @@ class VisArray(Collection):
 	def set_visualizer(cls, vis):
 		cls.vis = vis
 	
-	def __init__(self, n, init_sorted=False):
+	def __init__(self, n, init_sorted=False, show_aux=True):
 		if init_sorted:
 			self._data = list(range(1, n + 1))
 		else:
 			self._data = [0] * n
 		if self.vis != None and self.aux:
 			self.vis.extra_space += n
+			if show_aux:
+				self.vis.aux_arrays.append(self)
 			
 	def __del__(self):
 		if self.aux:
 			self.vis.extra_space -= len(self._data)
-		
+			if self in self.vis.aux_arrays:
+				self.vis.aux_arrays.remove(self) 
+				
 	def inc_writes(self, amount=1):
 		if self.aux:
 			self.vis.aux_writes += amount
@@ -186,13 +206,15 @@ algorithms = []
 
 class SortingAlgorithm:
 	
-	def __init__(self, name):
+	def __init__(self, name, *, disabled=False):
 		self.name = name
+		self.disabled = disabled
 		self.func = None
 		
 	def __call__(self, func):
 		self.func = func
-		algorithms.append(self)
+		if not self.disabled:
+			algorithms.append(self)
 		return self
 		
 	def run(self):
@@ -227,6 +249,62 @@ def InsertionSort(array, vis):
 			vis.write(array, j + 1, array[j], 4, True)
 			j -= 1
 		vis.write(array, j + 1, tmp, 4, True)
+		
+@SortingAlgorithm("Odd-Even Sort")
+def OddEvenSort(array, vis):
+	sorted = False
+	while not sorted:
+		sorted = True
+		for i in range(0, len(array) - 1, 2):
+			if vis.compare_indices(array, i, i + 1, 3, True) > 0:
+				vis.swap(array, i, i + 1, 3, True)
+				sorted = False
+		for i in range(1, len(array) - 1, 2):
+			if vis.compare_indices(array, i, i + 1, 3, True) > 0:
+				vis.swap(array, i, i + 1, 3, True)
+				sorted = False
+				
+@SortingAlgorithm("Merge Sort")
+def MergeSort(array, vis):
+	tmp = VisArray(len(array))
+	def merge(start, mid, end):
+		i = start
+		j = mid + 1
+		k = start
+		while i <= mid and j <= end:
+			if vis.compare_indices(array, i, j, 8, True) <= 0:
+				vis.write(tmp, k, array[i], 0, False)
+				i += 1
+			else:
+				vis.write(tmp, k, array[j], 0, False)
+				j += 1
+			k += 1
+		while i <= mid:
+			vis.mark(1, i)
+			vis.write(tmp, k, array[i], 0, False)
+			vis.sleep(6)
+			i += 1
+			k += 1
+		while j <= end:
+			vis.mark(2, j)
+			vis.write(tmp, k, array[j], 0, False)
+			vis.sleep(8)
+			j += 1
+			k += 1
+		vis.clear_mark(2)
+		i = start
+		while i <= end:
+			vis.write(array, i, tmp[i], 8, True)
+			i += 1
+			
+	def wrapper(start, end):
+		if start < end:
+			mid = (start + end) // 2
+			wrapper(start, mid)
+			wrapper(mid + 1, end)
+			merge(start, mid, end)
+			
+	wrapper(0, len(array) - 1)
 
 def choose_sort():
 	sort_str = [ "Enter the number corresponding to the sorting algorithm you want to visualize" ]
