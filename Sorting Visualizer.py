@@ -69,7 +69,7 @@ class Visualizer():
 				self.canvas.create_rectangle(self.rects[i], width * (i / len(arr)), begin, width * ((i + 1) / len(arr)), begin - bar, fill="white", outline="")
 		self.update_statistics()
 		self.canvas.update()
-		
+	
 	def display_finish_animation(self):
 		self.clear_all_marks()
 		self.aux_arrays.clear()
@@ -114,6 +114,15 @@ class Visualizer():
 	def compare_values(self, d1, d2):
 		self.comps += 1
 		return (d1 > d2) - (d1 < d2)
+		
+	def comp_swap(self, array, a, b, sleep, mark):
+		comp = self.compare_indices(array, a, b, 0, False)
+		if comp:
+			self.swap(array, a, b, sleep, mark)
+		else:
+			self.mark(1, a)
+			self.mark(2, b)
+		return comp
 		
 	def compare_indices(self, array, a, b, sleep, mark): 
 		comp = self.compare_values(array[a], array[b])
@@ -250,6 +259,19 @@ def InsertionSort(array, vis):
 			j -= 1
 		vis.write(array, j + 1, tmp, 4, True)
 		
+@SortingAlgorithm("Comb Sort")
+def CombSort(array, vis):
+	gap = len(array) * 10 // 13
+	sorted = False
+	while gap > 1 or not sorted:
+		sorted = True
+		for i in range(len(array) - gap):
+			if vis.compare_indices(array, i, i + gap, 6, True) > 0:
+				vis.swap(array, i, i + gap, 6, True)
+				sorted = False
+		if gap > 1:
+			gap = gap*10//13
+		
 @SortingAlgorithm("Odd-Even Sort")
 def OddEvenSort(array, vis):
 	sorted = False
@@ -263,6 +285,42 @@ def OddEvenSort(array, vis):
 			if vis.compare_indices(array, i, i + 1, 3, True) > 0:
 				vis.swap(array, i, i + 1, 3, True)
 				sorted = False
+				
+@SortingAlgorithm("Gnome Sort")
+def GnomeSort(array, vis):
+	i = 0
+	while i < len(array) - 1:
+		if vis.compare_indices(array, i, i + 1, 3, True) > 0:
+			vis.swap(array, i, i + 1, 4, True)
+			if i > 0:
+				i -= 1
+		else:
+			i += 1
+				
+@SortingAlgorithm("Quick Sort")
+def QuickSort(array, vis):
+	def partition(start, end, pivot):
+		while start < end:
+			while start < end and vis.compare_values(array[start], pivot) < 0:
+				vis.mark(1, start)
+				vis.sleep(7)
+				start += 1
+			while start < end and vis.compare_values(array[end], pivot) > 0:
+				vis.mark(1, end)
+				vis.sleep(7)
+				end -= 1
+			if start < end:
+				vis.swap(array, start, end, 7, True)
+		return start
+		
+	def wrapper(start, end):
+		if start < end:
+			piv = array[(start + end) // 2]
+			pos = partition(start, end, piv)
+			wrapper(start, pos)
+			wrapper(pos + 1, end)
+		
+	wrapper(0, len(array) - 1)
 				
 @SortingAlgorithm("Merge Sort")
 def MergeSort(array, vis):
