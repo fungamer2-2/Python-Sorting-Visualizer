@@ -75,6 +75,11 @@ class Visualizer():
 		self.aux_arrays.clear()
 		self.sleep_ratio = 1
 		for i in range(len(self.main_array)):
+			if i < len(self.main_array) - 1:
+				if self.main_array[i] > self.main_array[i + 1]:
+					messagebox.showerror("Sorting failed", f"The sorting algorithm was unsuccessful.\nItems {i} and {i + 1} are out of order.")
+					self.mark_finish = -1
+					return
 			self.mark_finish = i
 			self.sleep(1000 / len(self.main_array))
 		self.mark_finish = -1
