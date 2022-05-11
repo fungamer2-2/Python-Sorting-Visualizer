@@ -154,6 +154,8 @@ class Visualizer():
 		self.marks[id] = index
 		
 	def clear_mark(self, id):
+		if id >= len(self.marks):
+			return
 		self.marks[id] = -1
 		if id == len(self.marks) - 1:
 			last = next((i for i in reversed(range(len(self.marks))) if self.marks[id] != -1), None)
@@ -354,6 +356,24 @@ def GnomeSort(array, vis):
 				i -= 1
 		else:
 			i += 1
+			
+@SortingAlgorithm("Shell Sort")
+def ShellSort(array, vis):
+	gap = len(array) // 2
+	while gap >= 1:
+		for i in range(gap, len(array)):
+			tmp = array[i]
+			j = i - gap
+			vis.clear_mark(2)
+			while j >= 0 and vis.compare_values(array[j], tmp) >= 0:
+				if gap > 1:
+					vis.mark(2, j)
+				vis.write(array, j + gap, array[j], 9, True)
+				j -= gap
+			if gap > 1:
+				vis.mark(2, j)
+			vis.write(array, j + gap, tmp, 9, True)
+		gap //= 2
 				
 @SortingAlgorithm("Quick Sort")
 def QuickSort(array, vis):
