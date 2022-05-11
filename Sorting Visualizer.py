@@ -173,13 +173,16 @@ class Visualizer():
 			result = (d1 > d2) - (d1 < d2)
 		return result
 		
-	def comp_swap(self, array, a, b, sleep, mark):
+	def comp_swap(self, array, a, b, sleep, mark, reverse=False):
 		comp = self.compare_indices(array, a, b, 0, False)
-		if comp:
+		if reverse:
+			comp = -comp
+		if comp > 0:
 			self.swap(array, a, b, sleep, mark)
-		else:
+		elif mark:
 			self.mark(1, a)
 			self.mark(2, b)
+			self.sleep(sleep)
 		return comp
 		
 	def compare_indices(self, array, a, b, sleep, mark): 
@@ -294,10 +297,7 @@ class SortingAlgorithm:
 def BubbleSort(array, vis):
 	for i in reversed(range(1, len(array))):
 		for j in range(i):
-			vis.mark(1, j + 1)
-			vis.mark(2, j + 1)
-			if vis.compare_indices(array, j, j + 1, 3, True) > 0:
-				vis.swap(array, j, j + 1, 3, True)
+			vis.comp_swap(array, j, j + 1, 4.5, True)
 				
 @SortingAlgorithm("Selection Sort")
 def SelectionSort(array, vis):
@@ -326,8 +326,7 @@ def CombSort(array, vis):
 	while gap > 1 or not sorted:
 		sorted = True
 		for i in range(len(array) - gap):
-			if vis.compare_indices(array, i, i + gap, 6, True) > 0:
-				vis.swap(array, i, i + gap, 6, True)
+			if vis.comp_swap(array, i, i + gap, 7, True):
 				sorted = False
 		if gap > 1:
 			gap = gap*10//13
@@ -399,6 +398,31 @@ def QuickSort(array, vis):
 			wrapper(pos + 1, end)
 		
 	wrapper(0, len(array) - 1)
+	
+@SortingAlgorithm("Heap Sort")
+def HeapSort(array, vis):
+	def sift_down(root, dist, start, sleep):
+		while root <= dist // 2:
+			leaf = 2 * root
+			if leaf < dist and vis.compare_indices(array, start + leaf - 1, start + leaf, 0, False) < 0:
+				leaf += 1
+			if vis.comp_swap(array, start + root - 1, start + leaf - 1, sleep, True, reverse=True):
+				root = leaf
+			else:
+				break
+				
+	def heapify(start, end, sleep):
+		length = end - start + 1
+		for i in reversed(range(1, length//2 + 1)):
+			sift_down(i, length, start, sleep)
+	
+	def heap_sort(start, end, sleep):
+		heapify(start, end, sleep)
+		for i in reversed(range(2, end - start + 2)):
+			vis.swap(array, start, start + i - 1, sleep, True)
+			sift_down(1, i - 1, start, sleep)
+			
+	heap_sort(0, len(array) - 1, 15)
 				
 @SortingAlgorithm("Merge Sort")
 def MergeSort(array, vis):
