@@ -3,6 +3,53 @@ import tkinter as tk
 import random, time
 from tkinter import simpledialog, messagebox
 
+class Timer():
+	
+	def __init__(self):
+		self.start = -1
+		self.end = -1
+		self._time = None
+		
+	def start_lap(self):
+		if self.start != -1:
+			raise ValueError("start_lap() has already been called; call stop_lap() before you can start a new lap")
+		self.start = time.time()
+		self.end = -1
+		self._time = None
+		
+	def stop_lap(self):
+		if self.end != -1:
+			raise ValueError("a lap is not in progress; call start_lap() to start a lap")
+		self.end = time.time()
+		self._time = self.end - self.start
+		self.start = -1
+		
+	def get_time(self):
+		if self._time == None:
+			raise ValueError("at least one lap needs to be completed before calling get_time()")
+		return self._time
+		
+	def __enter__(self):
+		self.start_lap()
+		return self
+		
+	def __exit__(self, *args):
+		self.stop_lap()
+		
+class VisTimer:
+		
+	def __init__(self, vis):
+		self.vis = vis
+		self.timer = Timer()
+	
+	def __enter__(self):
+		self.timer.start_lap()
+		return self
+		
+	def __exit__(self, *args):
+		self.timer.stop_lap()
+		self.vis.real_time += self.timer.get_time()
+		
 class Visualizer():
 	
 	def __init__(self, root):
@@ -22,6 +69,8 @@ class Visualizer():
 		self.sleep_ratio = 1
 		self.aux_arrays = []
 		self.aux_rects = []
+		self.real_time = 0
+		self.timer = VisTimer(self)
 		
 	def set_main_array(self, arr):
 		self.main_array = arr
@@ -41,7 +90,7 @@ class Visualizer():
 		self.mark_finish = -1
 		
 	def update_statistics(self):
-		self.stat_var.set(f"Swaps: {self.swaps}\nComparisons: {self.comps}\nMain Array Writes: {self.writes}\nAuxiliary Array Writes: {self.aux_writes}\nAuxiliary Memory: {self.extra_space} items")
+		self.stat_var.set(f"Swaps: {self.swaps}\nComparisons: {self.comps}\nMain Array Writes: {self.writes}\nAuxiliary Array Writes: {self.aux_writes}\nAuxiliary Memory: {self.extra_space} items\nReal Time: {(self.real_time * 1000):.2f} ms")
 		
 	def update(self):
 		arr = self.main_array
@@ -118,7 +167,9 @@ class Visualizer():
 		
 	def compare_values(self, d1, d2):
 		self.comps += 1
-		return (d1 > d2) - (d1 < d2)
+		with self.timer:
+			result = (d1 > d2) - (d1 < d2)
+		return result
 		
 	def comp_swap(self, array, a, b, sleep, mark):
 		comp = self.compare_indices(array, a, b, 0, False)
@@ -139,14 +190,16 @@ class Visualizer():
 		
 	def swap(self, array, a, b, sleep, mark):
 		self.swaps += 1
-		array[a], array[b] = array[b], array[a]
+		with self.timer:
+			array[a], array[b] = array[b], array[a]
 		if mark:
 			self.mark(1, a)
 			self.mark(2, b)
 			self.sleep(sleep)
 		
 	def write(self, array, index, value, sleep, mark):
-		array[index] = value
+		with self.timer:	
+			array[index] = value
 		if mark:
 			self.mark(1, index)
 			self.sleep(sleep)
@@ -345,7 +398,7 @@ def MergeSort(array, vis):
 		while i <= mid:
 			vis.mark(1, i)
 			vis.write(tmp, k, array[i], 0, False)
-			vis.sleep(6)
+			vis.sleep(8)
 			i += 1
 			k += 1
 		while j <= end:
