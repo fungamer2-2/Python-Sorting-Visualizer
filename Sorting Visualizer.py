@@ -1,6 +1,6 @@
-from collections.abc import Collection
+from collections.abc import Collection, MutableSequence
 import tkinter as tk
-import random, time
+import random, time, math
 from tkinter import simpledialog, messagebox
 
 class Timer():
@@ -71,6 +71,7 @@ class Visualizer():
 		self.aux_rects = []
 		self.real_time = 0
 		self.timer = VisTimer(self)
+		self.analysis = False
 		
 	def set_main_array(self, arr):
 		self.main_array = arr
@@ -107,15 +108,20 @@ class Visualizer():
 			elif i == self.mark_finish:
 				color = "red"
 			else:
-				color = "red" if marked else "white"
+				color = ("blue" if self.analysis else "red") if marked else "white"
 			self.canvas.create_rectangle(self.rects[i], width * (i / len(arr)), height, width * ((i + 1) / len(arr)), height - bar, fill=color, outline="")
 		for j in range(len(self.aux_arrays)):
 			arr = self.aux_arrays[j]
-			for i in range(len(arr)):
-				x = width * i / len(arr)
+			length = arr.capacity if type(arr) == VisArrayList else len(arr)
+			for i in range(length):
+				x = width * i / length
 				begin = height - (height * (j + 1) / height_ratio)
-				bar = height / height_ratio * arr[i] / len(arr)
-				self.canvas.create_rectangle(self.rects[i], width * (i / len(arr)), begin, width * ((i + 1) / len(arr)), begin - bar, fill="white", outline="")
+				if type(arr) == VisArrayList and i >= len(arr):
+					val = 0
+				else:
+					val = arr[i]
+				bar = height / height_ratio * val / length
+				self.canvas.create_rectangle(self.rects[i], width * (i / length), begin, width * ((i + 1) / length), begin - bar, fill="white", outline="")
 		self.update_statistics()
 		self.canvas.update()
 	
@@ -208,6 +214,29 @@ class Visualizer():
 		if mark:
 			self.mark(1, index)
 			self.sleep(sleep)
+			
+	def analyze_max(self, array, sleep, mark):
+		self.analysis = True
+		max = array[0]
+		for i in range(len(array)):
+			with self.timer:
+				val = array[i]
+				if val > max:
+					max = val
+			if mark:
+				self.mark(1, i)
+				self.sleep(sleep)
+		self.analysis = False
+		return max
+		
+	def analyze_max_log(self, array, base, sleep, mark):
+		result = self.analyze_max(array, sleep, mark)
+		return int(math.log(result, base))
+		
+	def get_digit(self, a, power, radix):
+		with self.timer:
+			result = (a // radix**power) % radix
+		return result
 		
 class VisArray(Collection):
 	vis = None
@@ -227,7 +256,7 @@ class VisArray(Collection):
 				self.vis.aux_arrays.append(self)
 			
 	def __del__(self):
-		if self.aux:
+		if self.aux and self.vis:
 			self.vis.extra_space -= len(self._data)
 			if self in self.vis.aux_arrays:
 				self.vis.aux_arrays.remove(self) 
@@ -264,6 +293,38 @@ class VisArray(Collection):
 		
 	def __str__(self):
 		return str(self._data)
+		
+class VisArrayList(VisArray, MutableSequence):
+		
+	def __init__(self, capacity=1, show_aux=True):
+		super().__init__(0, False, show_aux)
+		self.capacity = capacity
+		
+	@property
+	def aux(self):
+		return True
+		
+	def insert(self, index, item):
+		self.vis.extra_space += 1
+		with self.vis.timer:
+			self._data.insert(index, item)
+			self.vis.aux_writes += 1
+		if len(self._data) > self.capacity:
+			self.capacity *= 2
+		
+	def __delitem__(self, index):
+		self.vis.extra_space -= 1
+		with self.vis.timer:
+			del self._data[index]
+		
+	def clear(self):
+		self.vis.extra_space -= len(self._data)
+		self._data.clear()
+		
+	def __del__(self):
+		self.vis.extra_space -= len(self._data)
+		if self in self.vis.aux_arrays:
+			self.vis.aux_arrays.remove(self) 
 		
 root = tk.Tk()
 root.configure(bg="black")
@@ -465,7 +526,25 @@ def MergeSort(array, vis):
 			merge(start, mid, end)
 			
 	wrapper(0, len(array) - 1)
-
+	
+@SortingAlgorithm("Radix LSD Sort (Base 4)")
+def RadixSort(array, vis):
+	highest_power = vis.analyze_max_log(array, 4, 12, True)
+	registers = [VisArrayList(len(array)) for _ in range(4)]
+	for p in range(highest_power + 1):
+		for i in range(len(array)):
+			vis.mark(1, i)
+			digit = vis.get_digit(array[i], p, 4)
+			registers[digit].append(array[i])
+			vis.sleep(12)
+		j = 0
+		for register in registers:
+			for i in range(len(register)):
+				vis.write(array, j, register[i], 12, True)
+				j += 1
+		for register in registers:
+			register.clear()
+				
 def choose_sort():
 	sort_str = [ "Enter the number corresponding to the sorting algorithm you want to visualize" ]
 	for id, sort in enumerate(algorithms):
