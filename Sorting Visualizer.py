@@ -112,7 +112,8 @@ class Visualizer():
 			self.canvas.create_rectangle(self.rects[i], width * (i / len(arr)), height, width * ((i + 1) / len(arr)), height - bar, fill=color, outline="")
 		for j in range(len(self.aux_arrays)):
 			arr = self.aux_arrays[j]
-			length = arr.capacity if type(arr) == VisArrayList else len(arr)
+			length = arr.capacity if type(arr) == VisArrayList else len(arr)	
+			hscale = max(arr) if arr.scale_by_max else (len(arr) if arr.hscale < 0 else arr.hscale)
 			for i in range(length):
 				x = width * i / length
 				begin = height - (height * (j + 1) / height_ratio)
@@ -120,7 +121,7 @@ class Visualizer():
 					val = 0
 				else:
 					val = arr[i]
-				bar = height / height_ratio * val / length
+				bar = height / height_ratio * val / hscale
 				self.canvas.create_rectangle(self.rects[i], width * (i / length), begin, width * ((i + 1) / length), begin - bar, fill="white", outline="")
 		self.update_statistics()
 		self.canvas.update()
@@ -245,21 +246,29 @@ class VisArray(Collection):
 	def set_visualizer(cls, vis):
 		cls.vis = vis
 	
-	def __init__(self, n, init_sorted=False, show_aux=True):
+	def __init__(self, n, init_sorted=False, show_aux=True, scale_by_max=False):
 		if init_sorted:
 			self._data = list(range(1, n + 1))
 		else:
 			self._data = [0] * n
+		self.scale_by_max = scale_by_max
+		self.hscale = -1
 		if self.vis != None and self.aux:
 			self.vis.extra_space += n
 			if show_aux:
 				self.vis.aux_arrays.append(self)
+				
+	def override_hscale(self, hscale):
+		self.hscale = hscale
+		self.scale_by_max = False
 			
 	def __del__(self):
 		if self.aux and self.vis:
 			self.vis.extra_space -= len(self._data)
-			if self in self.vis.aux_arrays:
-				self.vis.aux_arrays.remove(self) 
+		
+	def release(self):
+		if self in self.vis.aux_arrays:
+			self.vis.aux_arrays.remove(self) 
 				
 	def inc_writes(self, amount=1):
 		if self.aux:
@@ -526,6 +535,29 @@ def MergeSort(array, vis):
 			merge(start, mid, end)
 			
 	wrapper(0, len(array) - 1)
+	
+@SortingAlgorithm("Counting Sort")
+def CountingSort(array, vis):
+	maximum = vis.analyze_max(array, 0, False)
+	counts = VisArray(maximum, scale_by_max=True)
+	for i in range(len(array)):
+		idx = array[i] - 1
+		vis.write(counts, idx, counts[idx] + 1, 0, False)
+		vis.mark(1, i)
+		vis.sleep(15)
+	counts.override_hscale(sum(counts))
+	for i in range(1, len(array)):
+		vis.write(counts, i, counts[i] + counts[i - 1], 0, False)
+		vis.sleep(10)
+	output = VisArray(len(array))
+	output.override_hscale(max(array))
+	for i in range(len(array)):
+		vis.write(counts, array[i] - 1, counts[array[i] - 1] - 1, 0, False)
+		vis.write(output, counts[array[i] - 1], array[i], 0, False)
+		vis.sleep(15)
+	counts.release()
+	for i in range(len(array)):
+		vis.write(array, i, output[i], 15, True)	
 	
 @SortingAlgorithm("Radix LSD Sort (Base 4)")
 def RadixSort(array, vis):
