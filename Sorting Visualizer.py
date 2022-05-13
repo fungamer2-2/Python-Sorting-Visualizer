@@ -155,12 +155,22 @@ class Visualizer():
 			self.marks.extend([-1] * (n - len(self.marks)))
 	
 	def mark(self, id, index):
+		"""Marks a certain position in an array to the visualizer
+		
+		Usage:
+		id: int - the marker number to use
+		index: int - the position to set this marker at
+		"""
 		if not isinstance(index, int):
 			raise TypeError("index must be an int")
 		self._ensure_mark_capacity(id + 1)
 		self.marks[id] = index
 		
 	def clear_mark(self, id):
+		"""Clears a given marker
+		
+		Usage:
+		id: int - the marker number to be cleared"""
 		if id >= len(self.marks):
 			return
 		self.marks[id] = -1
@@ -172,27 +182,67 @@ class Visualizer():
 				del self.marks[last+1:]
 		
 	def clear_all_marks(self):
+		"Erases all markers in the visual"
 		self.marks = []
 		
 	def compare_values(self, d1, d2):
+		"""Compares two values
+		
+		Usage:
+		d1: int - the first number to be compared
+		d2: int - the second number to be compared
+		
+		Returns:
+		-1 if d1 < d2
+		1 if d1 > d2
+		0 if d1 == d2
+		"""
 		self.comps += 1
 		with self.timer:
 			result = (d1 > d2) - (d1 < d2)
 		return result
 		
 	def comp_swap(self, array, a, b, sleep, mark, reverse=False):
+		"""Compares two values in an array and swaps them if they are out of order
+		
+		Usage:
+		array: VisArray - the array to compare and swap values in
+		a: int - the first position to compare-and-swap
+		b: int - the second position to compare-and-swap
+		sleep: int - the duration to sleep for in the visualizer
+		mark: bool - whether to place a mark at the given position
+		reverse: bool (default False) - whether the comparison sign should be reversed
+		
+		Returns:
+		True if the values were swapped, False otherwise"""
+		
 		comp = self.compare_indices(array, a, b, 0, False)
 		if reverse:
 			comp = -comp
 		if comp > 0:
 			self.swap(array, a, b, sleep, mark)
+			return True
 		elif mark:
 			self.mark(1, a)
 			self.mark(2, b)
 			self.sleep(sleep)
-		return comp
+		return False
 		
 	def compare_indices(self, array, a, b, sleep, mark): 
+		"""Compares two values in an array
+		
+		Usage:
+		array: VisArray - the array to compare and swap values in
+		a: int - the first index to compare
+		b: int - the second index to compare
+		sleep: int - the duration to sleep for in the visualizer
+		mark: bool - whether to place a mark at the given position
+		
+		Returns:
+		-1 if array[a] < array[b]
+		1 if array[a] > array[b]
+		0 if array[a] == array[b]"""
+
 		comp = self.compare_values(array[a], array[b])
 		if mark:
 			self.mark(1, a)
@@ -201,6 +251,15 @@ class Visualizer():
 		return comp
 		
 	def swap(self, array, a, b, sleep, mark):
+		"""Swaps two values in an array
+		
+		Usage:
+		array: VisArray - the array to swap values in
+		a: int - the first index to swap
+		b: int - the second position to swap
+		sleep: int - the duration to sleep for in the visualizer
+		mark: bool - whether to place a mark at the given positions"""
+		
 		self.swaps += 1
 		with self.timer:
 			array[a], array[b] = array[b], array[a]
@@ -210,6 +269,15 @@ class Visualizer():
 			self.sleep(sleep)
 		
 	def write(self, array, index, value, sleep, mark):
+		"""Changes one value in an array
+		
+		Usage:
+		array: VisArray - the array in which to change a value
+		index: int - the index to change the value at
+		value: int - the value to change array[index] to
+		sleep: int - the duration to sleep for in the visualizer
+		mark: bool - whether to place a mark at the given positions"""
+		
 		with self.timer:	
 			array[index] = value
 		if mark:
@@ -217,6 +285,17 @@ class Visualizer():
 			self.sleep(sleep)
 			
 	def analyze_max(self, array, sleep, mark):
+		"""Finds the maximum value in an array. Does not count as a comparison in the visualizer.
+		
+		Usage:
+			
+		array: VisArray -  the array in which to analyze the maximum
+		sleep: int - the duration for which to sleep for each mark
+		mark: bool - whether to display a mark during analysis
+		
+		Returns:
+		the maximum value in the array"""
+
 		self.analysis = True
 		max = array[0]
 		for i in range(len(array)):
@@ -231,6 +310,18 @@ class Visualizer():
 		return max
 		
 	def analyze_max_log(self, array, base, sleep, mark):
+		"""Finds the log base b of the maximum value in an array. Does not count as a comparison in the visualizer.
+		
+		Usage:
+			
+		array: VisArray -  the array in which to analyze the maximum
+		base: the base of the logarithm to use
+		sleep: int - the duration for which to sleep for each mark
+		mark: bool - whether to display a mark during analysis
+		
+		Returns:
+		the log in base 'base' of the maximum value in the array"""
+		
 		result = self.analyze_max(array, sleep, mark)
 		return int(math.log(result, base))
 		
