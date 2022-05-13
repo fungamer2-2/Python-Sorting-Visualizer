@@ -64,11 +64,10 @@ class Visualizer():
 		canvas.update()
 		self.canvas = canvas
 		self.rects = []
-		self.marks = []
+		self.marklist = MarkList()
 		self.delay_count = 0
 		self.sleep_ratio = 1
 		self.aux_arrays = []
-		self.aux_rects = []
 		self.real_time = 0
 		self.timer = VisTimer(self)
 		self.analysis = False
@@ -77,7 +76,7 @@ class Visualizer():
 		self.main_array = arr
 		random.shuffle(self.main_array._data)
 		self.rects = [None] * len(arr)
-		self.marks = []
+		self.marklist.clear()
 		width = self.canvas.winfo_width()
 		height = self.canvas.winfo_height()
 		self.update()
@@ -102,7 +101,7 @@ class Visualizer():
 		for i in range(len(arr)):
 			x = width * i / len(arr)
 			bar = height / height_ratio * arr[i] / len(arr)
-			marked = any(mark == i for mark in self.marks)
+			marked = self.marklist.is_position_marked(i)
 			if i < self.mark_finish:
 				color = "#00ff00"
 			elif i == self.mark_finish:
@@ -122,7 +121,8 @@ class Visualizer():
 				else:
 					val = arr[i]
 				bar = height / height_ratio * val / hscale
-				self.canvas.create_rectangle(self.rects[i], width * (i / length), begin, width * ((i + 1) / length), begin - bar, fill="white", outline="")
+				color = "red" if arr.marklist.is_position_marked(i) else "white"
+				self.canvas.create_rectangle(self.rects[i], width * (i / length), begin, width * ((i + 1) / length), begin - bar, fill=color, outline="")
 		self.update_statistics()
 		self.canvas.update()
 	
@@ -149,11 +149,7 @@ class Visualizer():
 			end = time.time()
 			t = (end - start) * 1000
 			self.delay_count -= t
-			
-	def _ensure_mark_capacity(self, n):
-		if len(self.marks) < n:
-			self.marks.extend([-1] * (n - len(self.marks)))
-	
+				
 	def mark(self, id, index):
 		"""Marks a certain position in an array to the visualizer
 		
@@ -161,29 +157,18 @@ class Visualizer():
 		id: int - the marker number to use
 		index: int - the position to set this marker at
 		"""
-		if not isinstance(index, int):
-			raise TypeError("index must be an int")
-		self._ensure_mark_capacity(id + 1)
-		self.marks[id] = index
+		self.marklist.mark(id, index)
 		
 	def clear_mark(self, id):
 		"""Clears a given marker
 		
 		Usage:
 		id: int - the marker number to be cleared"""
-		if id >= len(self.marks):
-			return
-		self.marks[id] = -1
-		if id == len(self.marks) - 1:
-			last = next((i for i in reversed(range(len(self.marks))) if self.marks[id] != -1), None)
-			if last is None:
-				self.marks.clear()
-			else:
-				del self.marks[last+1:]
+		self.marklist.clear(id)
 		
 	def clear_all_marks(self):
 		"Erases all markers in the visual"
-		self.marks = []
+		self.marklist.clear()
 		
 	def compare_values(self, d1, d2):
 		"""Compares two values
@@ -223,8 +208,8 @@ class Visualizer():
 			self.swap(array, a, b, sleep, mark)
 			return True
 		elif mark:
-			self.mark(1, a)
-			self.mark(2, b)
+			array.mark(1, a)
+			array.mark(2, b)
 			self.sleep(sleep)
 		return False
 		
@@ -245,8 +230,8 @@ class Visualizer():
 
 		comp = self.compare_values(array[a], array[b])
 		if mark:
-			self.mark(1, a)
-			self.mark(2, b)
+			array.mark(1, a)
+			array.mark(2, b)
 			self.sleep(sleep)
 		return comp
 		
@@ -264,8 +249,8 @@ class Visualizer():
 		with self.timer:
 			array[a], array[b] = array[b], array[a]
 		if mark:
-			self.mark(1, a)
-			self.mark(2, b)
+			array.mark(1, a)
+			array.mark(2, b)
 			self.sleep(sleep)
 		
 	def write(self, array, index, value, sleep, mark):
@@ -281,7 +266,7 @@ class Visualizer():
 		with self.timer:	
 			array[index] = value
 		if mark:
-			self.mark(1, index)
+			array.mark(1, index)
 			self.sleep(sleep)
 			
 	def analyze_max(self, array, sleep, mark):
@@ -304,7 +289,7 @@ class Visualizer():
 				if val > max:
 					max = val
 			if mark:
-				self.mark(1, i)
+				array.mark(1, i)
 				self.sleep(sleep)
 		self.analysis = False
 		return max
@@ -330,6 +315,38 @@ class Visualizer():
 			result = (a // radix**power) % radix
 		return result
 		
+class MarkList:
+		
+	def __init__(self):
+		self.marks = []
+		
+	def _ensure_mark_capacity(self, n):
+		if len(self.marks) < n:
+			self.marks.extend([-1] * (n - len(self.marks)))
+	
+	def mark(self, id, index):
+		if not isinstance(index, int):
+			raise TypeError("index must be an int")
+		if index < 0:
+			raise ValueError(f"invalid mark position: {index}")
+		self._ensure_mark_capacity(id + 1)
+		self.marks[id] = index
+		
+	def clear(self, id=None):
+		if id is None:
+			self.marks.clear()
+		elif id < len(self.marks):
+			self.marks[id] = -1
+			if id == len(self.marks) - 1:
+				last = next((i for i in reversed(range(len(self.marks))) if self.marks[id] != -1), None)
+				if last is None:
+					self.marks.clear()
+				else:
+					del self.marks[last+1:]
+					
+	def is_position_marked(self, index):
+		return any(mark == index for mark in self.marks) 
+		
 class VisArray(Collection):
 	vis = None
 	
@@ -344,22 +361,43 @@ class VisArray(Collection):
 			self._data = [0] * n
 		self.scale_by_max = scale_by_max
 		self.hscale = -1
-		if self.vis != None and self.aux:
+		if self.aux:
 			self.vis.extra_space += n
 			if show_aux:
 				self.vis.aux_arrays.append(self)
+		if self.aux:
+			self.marklist = MarkList()
+		else:
+			self.marklist = None
 				
 	def override_hscale(self, hscale):
 		self.hscale = hscale
 		self.scale_by_max = False
+		
+	def mark(self, id, index):
+		if not self.aux and self.marklist is None:
+			self.marklist = self.vis.marklist
+		self.marklist.mark(id, index)
+		
+	def clear_mark(self, id):
+		if not self.aux and self.marklist is None:
+			self.marklist = self.vis.marklist
+		self.marklist.clear(id)
+		
+	def clear_all_marks(self):
+		if not self.aux and self.marklist is None:
+			self.marklist = self.vis.marklist
+		self.marklist.clear()
 			
 	def __del__(self):
 		if self.aux and self.vis:
+			self.release()
 			self.vis.extra_space -= len(self._data)
 		
 	def release(self):
 		if self in self.vis.aux_arrays:
 			self.vis.aux_arrays.remove(self) 
+			self.vis.extra_space -= len(self._data)
 				
 	def inc_writes(self, amount=1):
 		if self.aux:
@@ -369,7 +407,7 @@ class VisArray(Collection):
 	
 	@property	
 	def aux(self):
-		return self is not self.vis.main_array
+		return self.vis and self is not self.vis.main_array
 	
 	def __setitem__(self, index, value):
 		self.inc_writes()
@@ -633,20 +671,20 @@ def CountingSort(array, vis):
 	counts = VisArray(maximum, scale_by_max=True)
 	for i in range(len(array)):
 		idx = array[i] - 1
-		vis.write(counts, idx, counts[idx] + 1, 0, False)
+		vis.write(counts, idx, counts[idx] + 1, 0, True)
 		vis.mark(1, i)
 		vis.sleep(15)
+	vis.clear_all_marks()
 	counts.override_hscale(sum(counts))
 	for i in range(1, len(array)):
-		vis.write(counts, i, counts[i] + counts[i - 1], 0, False)
-		vis.sleep(10)
+		vis.write(counts, i, counts[i] + counts[i - 1], 15, True)
 	output = VisArray(len(array))
 	output.override_hscale(max(array))
 	for i in range(len(array)):
-		vis.write(counts, array[i] - 1, counts[array[i] - 1] - 1, 0, False)
-		vis.write(output, counts[array[i] - 1], array[i], 0, False)
-		vis.sleep(15)
+		vis.write(counts, array[i] - 1, counts[array[i] - 1] - 1, 8, True)
+		vis.write(output, counts[array[i] - 1], array[i], 8, True)
 	counts.release()
+	output.clear_all_marks()
 	for i in range(len(array)):
 		vis.write(array, i, output[i], 15, True)	
 	
