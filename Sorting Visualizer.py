@@ -128,6 +128,8 @@ class Visualizer():
 	
 	def display_finish_animation(self):
 		self.clear_all_marks()
+		for aux in self.aux_arrays:
+			aux.release()
 		self.aux_arrays.clear()
 		self.sleep_ratio = 1
 		for i in range(len(self.main_array)):
@@ -392,12 +394,12 @@ class VisArray(Collection):
 	def __del__(self):
 		if self.aux and self.vis:
 			self.release()
-			self.vis.extra_space -= len(self._data)
 		
 	def release(self):
 		if self in self.vis.aux_arrays:
 			self.vis.aux_arrays.remove(self) 
 			self.vis.extra_space -= len(self._data)
+			self._data = []
 				
 	def inc_writes(self, amount=1):
 		if self.aux:
@@ -686,7 +688,7 @@ def CountingSort(array, vis):
 	counts.release()
 	output.clear_all_marks()
 	for i in range(len(array)):
-		vis.write(array, i, output[i], 15, True)	
+		vis.write(array, i, output[i], 15, True)
 	
 @SortingAlgorithm("Radix LSD Sort (Base 4)")
 def RadixSort(array, vis):
