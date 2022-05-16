@@ -689,6 +689,27 @@ def CountingSort(array, vis):
 	output.clear_all_marks()
 	for i in range(len(array)):
 		vis.write(array, i, output[i], 15, True)
+		
+@SortingAlgorithm("Pigeonhole Sort")
+def PigeonholeSort(array, vis):
+	maxi = array[0]
+	mini = array[0]
+	with vis.timer:
+		for i in range(len(array)):
+			if array[i] > maxi:
+				maxi = array[i]
+			elif array[i] < mini:
+				mini = array[i]
+	holes = VisArray(maxi - mini + 1, scale_by_max=True)
+	for i in range(len(array)):
+		vis.mark(1, i)
+		vis.write(holes, array[i] - mini, holes[array[i] - mini] + 1, 15, True)
+	index = 0
+	for count in range(len(holes)):
+		while holes[count] > 0:
+			vis.write(holes, count, holes[count] - 1, 8, True)
+			vis.write(array, index, count + mini, 8, True)
+			index += 1
 	
 @SortingAlgorithm("Radix LSD Sort (Base 4)")
 def RadixSort(array, vis):
