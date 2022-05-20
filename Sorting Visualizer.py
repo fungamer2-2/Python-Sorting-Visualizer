@@ -1,4 +1,5 @@
 from collections.abc import Collection, MutableSequence
+from enum import Enum
 import tkinter as tk
 import random, time, math
 from tkinter import simpledialog, messagebox
@@ -113,6 +114,8 @@ class Visualizer():
 			arr = self.aux_arrays[j]
 			length = arr.capacity if type(arr) == VisArrayList else len(arr)	
 			hscale = max(arr) if arr.scale_by_max else (len(arr) if arr.hscale < 0 else arr.hscale)
+			if hscale < 1: #Prevent division by zero
+				hscale = 1 
 			for i in range(length):
 				x = width * i / length
 				begin = height - (height * (j + 1) / height_ratio)
@@ -475,32 +478,46 @@ vis = Visualizer(root)
 vis.set_main_array(arr)
 VisArray.set_visualizer(vis)
 
-algorithms = []
+group_names = [
+    "Exchange",
+    "Selection",
+    "Insertion",
+    "Merge",
+    "Distribution",
+    "Uncategorized"
+]
+
+algorithms = [[] for _ in range(len(group_names))]
 
 class SortingAlgorithm:
 	
-	def __init__(self, name, *, disabled=False):
+	def __init__(self, name, *, disabled=False, group=None):
+		group = "Uncategorized" if group is None else group.lower().capitalize()
+		if group not in group_names:
+			raise ValueError(f"invalid sort group {group!r}")
 		self.name = name
 		self.disabled = disabled
+		self.group = group
 		self.func = None
 		
 	def __call__(self, func):
 		self.func = func
 		if not self.disabled:
-			algorithms.append(self)
+			index = group_names.index(self.group)
+			algorithms[index].append(self)
 		return self
 		
 	def run(self):
 		self.func(arr, vis)
 		vis.display_finish_animation()
 
-@SortingAlgorithm("Bubble Sort")		
+@SortingAlgorithm("Bubble Sort", group="exchange")		
 def BubbleSort(array, vis):
 	for i in reversed(range(1, len(array))):
 		for j in range(i):
 			vis.comp_swap(array, j, j + 1, 4.5, True)
 				
-@SortingAlgorithm("Selection Sort")
+@SortingAlgorithm("Selection Sort", group="selection")
 def SelectionSort(array, vis):
 	for i in range(len(array) - 1):
 		m = i
@@ -510,7 +527,7 @@ def SelectionSort(array, vis):
 				m = j
 		vis.swap(array, i, m, 4, True)	
 
-@SortingAlgorithm("Insertion Sort")
+@SortingAlgorithm("Insertion Sort", group="insertion")
 def InsertionSort(array, vis):
 	for i in range(1, len(array)):
 		tmp = array[i]
@@ -520,7 +537,7 @@ def InsertionSort(array, vis):
 			j -= 1
 		vis.write(array, j + 1, tmp, 4, True)
 		
-@SortingAlgorithm("Comb Sort")
+@SortingAlgorithm("Comb Sort", group="exchange")
 def CombSort(array, vis):
 	gap = len(array) * 10 // 13
 	sorted = False
@@ -532,7 +549,7 @@ def CombSort(array, vis):
 		if gap > 1:
 			gap = gap*10//13
 		
-@SortingAlgorithm("Odd-Even Sort")
+@SortingAlgorithm("Odd-Even Sort", group="exchange")
 def OddEvenSort(array, vis):
 	sorted = False
 	while not sorted:
@@ -546,7 +563,7 @@ def OddEvenSort(array, vis):
 				vis.swap(array, i, i + 1, 3, True)
 				sorted = False
 				
-@SortingAlgorithm("Gnome Sort")
+@SortingAlgorithm("Gnome Sort", group="exchange")
 def GnomeSort(array, vis):
 	i = 0
 	while i < len(array) - 1:
@@ -557,7 +574,7 @@ def GnomeSort(array, vis):
 		else:
 			i += 1
 			
-@SortingAlgorithm("Shell Sort")
+@SortingAlgorithm("Shell Sort", group="insertion")
 def ShellSort(array, vis):
 	gap = len(array) // 2
 	while gap >= 1:
@@ -575,7 +592,7 @@ def ShellSort(array, vis):
 			vis.write(array, j + gap, tmp, 9, True)
 		gap //= 2
 				
-@SortingAlgorithm("Quick Sort")
+@SortingAlgorithm("Quick Sort", group="exchange")
 def QuickSort(array, vis):
 	def partition(start, end, pivot):
 		while start < end:
@@ -600,7 +617,7 @@ def QuickSort(array, vis):
 		
 	wrapper(0, len(array) - 1)
 	
-@SortingAlgorithm("Heap Sort")
+@SortingAlgorithm("Heap Sort", group="selection")
 def HeapSort(array, vis):
 	def sift_down(root, dist, start, sleep):
 		while root <= dist // 2:
@@ -625,7 +642,7 @@ def HeapSort(array, vis):
 			
 	heap_sort(0, len(array) - 1, 15)
 				
-@SortingAlgorithm("Merge Sort")
+@SortingAlgorithm("Merge Sort", group="merge")
 def MergeSort(array, vis):
 	tmp = VisArray(len(array))
 	def merge(start, mid, end):
@@ -667,7 +684,7 @@ def MergeSort(array, vis):
 			
 	wrapper(0, len(array) - 1)
 	
-@SortingAlgorithm("Counting Sort")
+@SortingAlgorithm("Counting Sort", group="distribution")
 def CountingSort(array, vis):
 	maximum = vis.analyze_max(array, 0, False)
 	counts = VisArray(maximum, scale_by_max=True)
@@ -690,7 +707,7 @@ def CountingSort(array, vis):
 	for i in range(len(array)):
 		vis.write(array, i, output[i], 15, True)
 		
-@SortingAlgorithm("Pigeonhole Sort")
+@SortingAlgorithm("Pigeonhole Sort", group="distribution")
 def PigeonholeSort(array, vis):
 	maxi = array[0]
 	mini = array[0]
@@ -711,7 +728,7 @@ def PigeonholeSort(array, vis):
 			vis.write(array, index, count + mini, 8, True)
 			index += 1
 	
-@SortingAlgorithm("Radix LSD Sort (Base 4)")
+@SortingAlgorithm("Radix LSD Sort (Base 4)", group="distribution")
 def RadixSort(array, vis):
 	highest_power = vis.analyze_max_log(array, 4, 12, True)
 	registers = [VisArrayList(len(array)) for _ in range(4)]
@@ -730,18 +747,41 @@ def RadixSort(array, vis):
 			register.clear()
 				
 def choose_sort():
-	sort_str = [ "Enter the number corresponding to the sorting algorithm you want to visualize" ]
+	group_str = [ "Enter the number corresponding to the category of sorting algorithm" ]
 	for id, sort in enumerate(algorithms):
-		sort_str.append(f"{id+1} - {sort.name}")
-	while True:
-		num = None
-		while num == None:
-			num = simpledialog.askinteger("Choose Sort", "\n".join(sort_str))
-		if not 1 <= num <= len(algorithms):
-			messagebox.showerror("Error", "Invalid sort number")
-			continue
-		return algorithms[num - 1]
-	
+		if len(algorithms[id]) > 0:
+			group_str.append(f"{id+1} - {group_names[id]}")
+	group_str = "\n".join(group_str)
+	done = False
+	while not done:
+		while True:
+			num = None	
+			while num == None:
+				num = simpledialog.askinteger("Choose Sort Category", group_str)
+			if 1 <= num <= len(algorithms):
+				break
+			else:
+				messagebox.showerror("Error", "Invalid category number")
+		
+		algs = algorithms[num - 1]
+		sort_str = [ "Enter the number corresponding to the sorting algorithm you want to visualize", "0 - Back to category selection" ]
+		for id, sort in enumerate(algs):
+			print()
+			sort_str.append(f"{id+1} - {sort.name}")
+		sort_str = "\n".join(sort_str)
+		
+		while True:
+			num = None	
+			while num == None:
+				num = simpledialog.askinteger("Choose Sort", sort_str)
+			if 0 <= num <= len(algs):
+				done = num > 0
+				break
+			else:
+				messagebox.showerror("Error", "Invalid sort number")	
+			
+	return algs[num - 1]		
+
 sort = choose_sort()
 sort.run()
 root.mainloop()
