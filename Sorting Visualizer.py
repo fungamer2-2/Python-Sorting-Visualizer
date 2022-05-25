@@ -520,6 +520,26 @@ def BubbleSort(array, vis):
 	for i in reversed(range(1, len(array))):
 		for j in range(i):
 			vis.comp_swap(array, j, j + 1, 4.5, True)
+			
+@SortingAlgorithm("Cocktail Shaker Sort", group="exchange")
+def CocktailShakerSort(array, vis):
+	start = 0
+	end = len(array) - 1
+	sorted = False
+	while not sorted and start < end:
+		sorted = True
+		for i in range(start, end):
+			if vis.comp_swap(array, i, i + 1, 4.5, True):
+				sorted = False
+		if sorted:
+			return
+		end -= 1
+		for i in reversed(range(start, end)):
+			if vis.comp_swap(array, i, i + 1, 4.5, True):
+				sorted = False
+		if sorted:
+			return
+		start += 1
 				
 @SortingAlgorithm("Selection Sort", group="selection")
 def SelectionSort(array, vis):
@@ -645,6 +665,29 @@ def HeapSort(array, vis):
 			sift_down(1, i - 1, start, sleep)
 			
 	heap_sort(0, len(array) - 1, 15)
+	
+@SortingAlgorithm("Circle Sort", group="exchange")
+def CircleSort(array, vis):
+	def circle(start, end):
+		if start >= end:
+			return False
+		swapped = False
+		i = start
+		j = end
+		while i < j:
+			if vis.comp_swap(array, i, j, 10, True):
+				swapped = True
+			i += 1
+			j -= 1
+		if i == j and vis.comp_swap(array, i, j + 1, 10, True):
+			swapped = True
+		mid = (start + end) // 2
+		swapped |= circle(start, mid)
+		swapped |= circle(mid + 1, end)
+		return swapped
+		
+	while circle(0, len(array) - 1):
+		pass
 				
 @SortingAlgorithm("Merge Sort", group="merge")
 def MergeSort(array, vis):
