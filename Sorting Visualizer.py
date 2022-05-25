@@ -113,7 +113,7 @@ class Visualizer():
 		for j in range(len(self.aux_arrays)):
 			arr = self.aux_arrays[j]
 			length = arr.capacity if type(arr) == VisArrayList else len(arr)	
-			hscale = max(arr) if arr.scale_by_max else (len(arr) if arr.hscale < 0 else arr.hscale)
+			hscale = max(arr) if arr.scale_by_max else (length if arr.hscale < 0 else arr.hscale)
 			if hscale < 1: #Prevent division by zero
 				hscale = 1 
 			for i in range(length):
@@ -148,12 +148,16 @@ class Visualizer():
 		
 	def sleep(self, ms):
 		self.delay_count += ms / self.sleep_ratio
-		while self.delay_count > 0:
+		if self.delay_count > 0:
 			start = time.time()
 			self.update()
 			end = time.time()
 			t = (end - start) * 1000
 			self.delay_count -= t
+			start = time.time()
+			while self.delay_count > 0:
+				time.sleep(10 / 1000)
+				self.delay_count -= 10
 				
 	def mark(self, id, index):
 		"""Marks a certain position in an array to the visualizer
