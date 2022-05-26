@@ -1,8 +1,10 @@
 from collections.abc import Collection, MutableSequence
 from enum import Enum
 import tkinter as tk
-import random, time, math
+import random, time, math, sys
 from tkinter import simpledialog, messagebox
+
+sys.setrecursionlimit(2 ** 31 - 1)
 
 class Timer():
 	
@@ -488,6 +490,7 @@ group_names = [
     "Insertion",
     "Merge",
     "Distribution",
+    "Impractical",
     "Uncategorized"
 ]
 
@@ -792,6 +795,29 @@ def RadixSort(array, vis):
 				j += 1
 		for register in registers:
 			register.clear()
+			
+@SortingAlgorithm("Stooge Sort", group="impractical")
+def StoogeSort(array, vis):
+	def stooge(start, end):
+		if start < end:
+			vis.comp_swap(array, start, end, 0.3, True)
+			if end - start > 1:
+				third = (end - start + 1) // 3
+				stooge(start, end - third)
+				stooge(start + third, end)
+				stooge(start, end - third)
+	stooge(0, len(array) - 1)
+	
+@SortingAlgorithm("Slow Sort", group="impractical")
+def SlowSort(array, vis):
+	def slowsort(start, end):
+		if start < end:
+			mid = (start + end) // 2
+			slowsort(start, mid)
+			slowsort(mid + 1, end)
+			vis.comp_swap(array, mid, end, 0.1, True)
+			slowsort(start, end - 1)
+	slowsort(0, len(array) - 1)
 				
 def choose_sort():
 	group_str = [ "Enter the number corresponding to the category of sorting algorithm" ]
