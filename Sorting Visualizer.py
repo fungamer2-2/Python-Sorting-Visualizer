@@ -115,7 +115,7 @@ class Visualizer():
 		for j in range(len(self.aux_arrays)):
 			arr = self.aux_arrays[j]
 			length = arr.capacity if type(arr) == VisArrayList else len(arr)	
-			hscale = max(arr) if arr.scale_by_max else (length if arr.hscale < 0 else arr.hscale)
+			hscale = max(arr, default=1) if arr.scale_by_max else (length if arr.hscale < 0 else arr.hscale)
 			if hscale < 1: #Prevent division by zero
 				hscale = 1 
 			for i in range(length):
@@ -445,8 +445,8 @@ class VisArray(Collection):
 		
 class VisArrayList(VisArray, MutableSequence):
 		
-	def __init__(self, capacity=1, show_aux=True):
-		super().__init__(0, False, show_aux)
+	def __init__(self, capacity=1, show_aux=True, scale_by_max=False):
+		super().__init__(0, False, show_aux, scale_by_max)
 		self.capacity = capacity
 		
 	@property
@@ -490,6 +490,7 @@ group_names = [
     "Insertion",
     "Merge",
     "Distribution",
+    "Concurrent",
     "Impractical",
     "Uncategorized"
 ]
@@ -777,6 +778,31 @@ def PigeonholeSort(array, vis):
 			vis.write(holes, count, holes[count] - 1, 8, True)
 			vis.write(array, index, count + mini, 8, True)
 			index += 1
+			
+@SortingAlgorithm("Bitonic Sort", group="concurrent")
+def BitonicSort(array, vis):
+	def greatest_power_of_2_less_than(n):
+		k = 1
+		while k < n:
+			k *= 2
+		return k // 2
+			
+	def bitonic_merge(start, length, dir):
+		if length > 1:
+			m = greatest_power_of_2_less_than(length)
+			for i in range(start, start + length - m):
+				vis.comp_swap(array, i, i + m, 15, True, reverse=dir)
+			bitonic_merge(start, m, dir)
+			bitonic_merge(start + m, length - m, dir)
+			
+	def bitonic_sort(start, length, bw):
+		if length > 1:
+			m = length // 2
+			bitonic_sort(start, m, not bw)
+			bitonic_sort(start + m, length - m, bw)
+			bitonic_merge(start, length, bw)
+			
+	bitonic_sort(0, len(array), False)
 	
 @SortingAlgorithm("Radix LSD Sort (Base 4)", group="distribution")
 def RadixSort(array, vis):
@@ -796,6 +822,32 @@ def RadixSort(array, vis):
 		for register in registers:
 			register.clear()
 			
+@SortingAlgorithm("Radix MSD Sort (Base 4)", group="distribution")
+def RadixMSDSort(array, vis):
+	def radix(start, end, base, pow):
+		if start >= end or pow < 0:
+			return
+		registers = [VisArrayList(end - start + 1) for _ in range(4)]
+		for register in registers:
+			register.override_hscale(len(array))
+		for i in range(start, end + 1):
+			vis.mark(1, i)
+			digit = vis.get_digit(array[i], pow, 4)
+			registers[digit].append(array[i])
+			vis.sleep(12)
+		index = start
+		for register in registers:
+			for i in range(len(register)):
+				vis.write(array, index, register[i], 12, True)
+				index += 1
+		sum = 0
+		for i in range(len(registers)):
+			radix(sum + start, sum + start + len(registers[i]) - 1, base, pow - 1)
+			sum += len(registers[i])
+			register.release()
+	highest_power = vis.analyze_max_log(array, 4, 12, True)
+	radix(0, len(array) - 1, 4, highest_power)
+				
 @SortingAlgorithm("Stooge Sort", group="impractical")
 def StoogeSort(array, vis):
 	def stooge(start, end):
@@ -818,7 +870,7 @@ def SlowSort(array, vis):
 			vis.comp_swap(array, mid, end, 0.1, True)
 			slowsort(start, end - 1)
 	slowsort(0, len(array) - 1)
-				
+	
 def choose_sort():
 	group_str = [ "Enter the number corresponding to the category of sorting algorithm" ]
 	for id, sort in enumerate(algorithms):
