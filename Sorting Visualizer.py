@@ -848,7 +848,7 @@ def RadixMSDSort(array, vis):
 	highest_power = vis.analyze_max_log(array, 4, 12, True)
 	radix(0, len(array) - 1, 4, highest_power)
 
-@SortingAlgorithm("[4, 4] Van Voorhis Sorting Network (Recursive)")
+@SortingAlgorithm("[4, 4] Van Voorhis Sorting Network (Recursive)", group="concurrent")
 def VanVoorhis_4_4_Sort(array, vis):
 	arr_len = len(array)
 	end = arr_len - 1
