@@ -847,7 +847,60 @@ def RadixMSDSort(array, vis):
 			register.release()
 	highest_power = vis.analyze_max_log(array, 4, 12, True)
 	radix(0, len(array) - 1, 4, highest_power)
-				
+
+@SortingAlgorithm("[4, 4] Van Voorhis Sorting Network (Recursive)")
+def VanVoorhis_4_4_Sort(array, vis):
+	arr_len = len(array)
+	end = arr_len - 1
+	
+	def comp_swap(a, b):
+		if a <= end and b <= end:
+			vis.comp_swap(array, a, b, 25, True)
+	
+	def merge(start, n, g):
+		if start >= end:
+			return
+		if n < 4:
+			return
+		if n == 4:
+			comp_swap(start, start + g)
+			comp_swap(start + 2 * g, start + 3 * g)
+			comp_swap(start, start + 2 * g)
+			comp_swap(start + g, start + 3 * g)
+			comp_swap(start + g, start + 2 * g)
+			return
+			
+		merge(start, n//4, 4 * g)
+		merge(start + g, n//4, 4 * g)
+		merge(start + 2 * g, n//4, 4 * g)
+		merge(start + 3 * g, n//4, 4 * g)
+		for i in range(2, n - 7, 4):
+			comp_swap(start + i * g, start + (i + 6) * g)
+			comp_swap(start + (i + 1) * g, start + (i + 7) * g)
+		for i in range(1, n - 3, 2):
+			comp_swap(start + i * g, start + (i + 3) * g)	
+		for i in range(2, n - 3, 4):
+			comp_swap(start + i * g, start + (i + 2) * g)
+			comp_swap(start + (i + 1) * g, start + (i + 3) * g)	
+		for i in range(3, n - 3, 2):
+			comp_swap(start + i * g, start + (i + 1) * g)				
+			
+	def sort(start, length):
+		if start >= end:
+			return
+		f = length // 4
+		if f > 1:
+			f = length // 4
+			sort(start, f)
+			sort(start + f, f)
+			sort(start + 2 * f, f)
+			sort(start + 3 * f, f)
+		merge(start, length, 1)
+		
+	lg = math.ceil(math.log(arr_len	, 4))
+	next_pow_4 = 4 ** lg
+	sort(0, next_pow_4)
+			
 @SortingAlgorithm("Stooge Sort", group="impractical")
 def StoogeSort(array, vis):
 	def stooge(start, end):
