@@ -485,14 +485,15 @@ vis.set_main_array(arr)
 VisArray.set_visualizer(vis)
 
 group_names = [
-    "Exchange",
-    "Selection",
-    "Insertion",
-    "Merge",
-    "Distribution",
-    "Concurrent",
-    "Impractical",
-    "Uncategorized"
+	"Exchange",
+	"Selection",
+	"Insertion",
+	"Merge",
+	"Distribution",
+	"Concurrent",
+	"Hybrid",
+	"Impractical",
+	"Uncategorized"
 ]
 
 algorithms = [[] for _ in range(len(group_names))]
@@ -897,9 +898,27 @@ def VanVoorhis_4_4_Sort(array, vis):
 			sort(start + 3 * f, f)
 		merge(start, length, 1)
 		
-	lg = math.ceil(math.log(arr_len	, 4))
+	lg = math.ceil(math.log(arr_len, 4))
 	next_pow_4 = 4 ** lg
 	sort(0, next_pow_4)
+	
+@SortingAlgorithm("Hybrid Comb Sort", group="hybrid")
+def HybridCombSort(array, vis):
+	gap = len(array) * 10 // 13
+	min_gap = min(8, len(array) // 32)
+	while gap > min_gap:
+		for i in range(len(array) - gap):
+			vis.comp_swap(array, i, i + gap, 7, True)
+		if gap > 1:
+			gap = gap*10//13
+	vis.clear_mark(2)			
+	for i in range(1, len(array)):
+		tmp = array[i]
+		j = i - 1
+		while j >= 0 and vis.compare_values(array[j], tmp) > 0:
+			vis.write(array, j + 1, array[j], 5, True)
+			j -= 1
+		vis.write(array, j + 1, tmp, 5, True)
 			
 @SortingAlgorithm("Stooge Sort", group="impractical")
 def StoogeSort(array, vis):
@@ -923,6 +942,8 @@ def SlowSort(array, vis):
 			vis.comp_swap(array, mid, end, 0.1, True)
 			slowsort(start, end - 1)
 	slowsort(0, len(array) - 1)
+	
+
 	
 def choose_sort():
 	group_str = [ "Enter the number corresponding to the category of sorting algorithm" ]
