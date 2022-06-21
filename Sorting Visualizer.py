@@ -149,6 +149,8 @@ class Visualizer():
 		self.update()
 		
 	def sleep(self, ms):
+		if random.randint(1, 300) == 1:
+			print(f"Sleep ms: {ms}")
 		self.delay_count += ms / self.sleep_ratio
 		if self.delay_count > 0:
 			start = time.time()
@@ -500,7 +502,7 @@ algorithms = [[] for _ in range(len(group_names))]
 
 class SortingAlgorithm:
 	
-	def __init__(self, name, *, disabled=False, group=None):
+	def __init__(self, name, *, disabled=False, group=None, default_sleep_ratio=1):
 		group = "Uncategorized" if group is None else group.lower().capitalize()
 		if group not in group_names:
 			raise ValueError(f"invalid sort group {group!r}")
@@ -508,6 +510,7 @@ class SortingAlgorithm:
 		self.disabled = disabled
 		self.group = group
 		self.func = None
+		self.default_sleep_ratio = default_sleep_ratio
 		
 	def __call__(self, func):
 		self.func = func
@@ -517,16 +520,17 @@ class SortingAlgorithm:
 		return self
 		
 	def run(self):
+		vis.sleep_ratio = self.default_sleep_ratio
 		self.func(arr, vis)
 		vis.display_finish_animation()
 
-@SortingAlgorithm("Bubble Sort", group="exchange")		
+@SortingAlgorithm("Bubble Sort", group="exchange", default_sleep_ratio=0.24)		
 def BubbleSort(array, vis):
 	for i in reversed(range(1, len(array))):
 		for j in range(i):
-			vis.comp_swap(array, j, j + 1, 4.5, True)
+			vis.comp_swap(array, j, j + 1, 1, True)
 			
-@SortingAlgorithm("Cocktail Shaker Sort", group="exchange")
+@SortingAlgorithm("Cocktail Shaker Sort", group="exchange", default_sleep_ratio=0.24)
 def CocktailShakerSort(array, vis):
 	start = 0
 	end = len(array) - 1
@@ -534,39 +538,39 @@ def CocktailShakerSort(array, vis):
 	while not sorted and start < end:
 		sorted = True
 		for i in range(start, end):
-			if vis.comp_swap(array, i, i + 1, 4.5, True):
+			if vis.comp_swap(array, i, i + 1, 1, True):
 				sorted = False
 		if sorted:
 			return
 		end -= 1
 		for i in reversed(range(start, end)):
-			if vis.comp_swap(array, i, i + 1, 4.5, True):
+			if vis.comp_swap(array, i, i + 1, 1, True):
 				sorted = False
 		if sorted:
 			return
 		start += 1
 				
-@SortingAlgorithm("Selection Sort", group="selection")
+@SortingAlgorithm("Selection Sort", group="selection", default_sleep_ratio=0.25)
 def SelectionSort(array, vis):
 	for i in range(len(array) - 1):
 		m = i
 		vis.mark(3, i)
 		for j in range(i + 1, len(array)):
-			if vis.compare_indices(array, j, m, 4, True) < 0:
+			if vis.compare_indices(array, j, m, 1, True) < 0:
 				m = j
-		vis.swap(array, i, m, 4, True)	
+		vis.swap(array, i, m, 1, True)	
 
-@SortingAlgorithm("Insertion Sort", group="insertion")
+@SortingAlgorithm("Insertion Sort", group="insertion", default_sleep_ratio=0.25)
 def InsertionSort(array, vis):
 	for i in range(1, len(array)):
 		tmp = array[i]
 		j = i - 1
 		while j >= 0 and vis.compare_values(array[j], tmp) > 0:
-			vis.write(array, j + 1, array[j], 4, True)
+			vis.write(array, j + 1, array[j], 1, True)
 			j -= 1
-		vis.write(array, j + 1, tmp, 4, True)
+		vis.write(array, j + 1, tmp, 1, True)
 		
-@SortingAlgorithm("Comb Sort", group="exchange")
+@SortingAlgorithm("Comb Sort", group="exchange", default_sleep_ratio=0.14)
 def CombSort(array, vis):
 	gap = len(array) * 10 // 13
 	sorted = False
@@ -578,32 +582,32 @@ def CombSort(array, vis):
 		if gap > 1:
 			gap = gap*10//13
 		
-@SortingAlgorithm("Odd-Even Sort", group="exchange")
+@SortingAlgorithm("Odd-Even Sort", group="exchange", default_sleep_ratio=0.33)
 def OddEvenSort(array, vis):
 	sorted = False
 	while not sorted:
 		sorted = True
 		for i in range(0, len(array) - 1, 2):
-			if vis.compare_indices(array, i, i + 1, 3, True) > 0:
-				vis.swap(array, i, i + 1, 3, True)
+			if vis.compare_indices(array, i, i + 1, 1, True) > 0:
+				vis.swap(array, i, i + 1, 1, True)
 				sorted = False
 		for i in range(1, len(array) - 1, 2):
-			if vis.compare_indices(array, i, i + 1, 3, True) > 0:
-				vis.swap(array, i, i + 1, 3, True)
+			if vis.compare_indices(array, i, i + 1, 1, True) > 0:
+				vis.swap(array, i, i + 1, 1, True)
 				sorted = False
 				
-@SortingAlgorithm("Gnome Sort", group="exchange")
+@SortingAlgorithm("Gnome Sort", group="exchange", default_sleep_ratio=0.25)
 def GnomeSort(array, vis):
 	i = 0
 	while i < len(array) - 1:
-		if vis.compare_indices(array, i, i + 1, 3, True) > 0:
-			vis.swap(array, i, i + 1, 4, True)
+		if vis.compare_indices(array, i, i + 1, 0.75, True) > 0:
+			vis.swap(array, i, i + 1, 1, True)
 			if i > 0:
 				i -= 1
 		else:
 			i += 1
 			
-@SortingAlgorithm("Shell Sort", group="insertion")
+@SortingAlgorithm("Shell Sort", group="insertion", default_sleep_ratio=0.11)
 def ShellSort(array, vis):
 	gap = len(array) // 2
 	while gap >= 1:
@@ -614,27 +618,27 @@ def ShellSort(array, vis):
 			while j >= 0 and vis.compare_values(array[j], tmp) >= 0:
 				if gap > 1:
 					vis.mark(2, j)
-				vis.write(array, j + gap, array[j], 9, True)
+				vis.write(array, j + gap, array[j], 1, True)
 				j -= gap
 			if gap > 1:
 				vis.mark(2, j)
-			vis.write(array, j + gap, tmp, 9, True)
+				vis.write(array, j + gap, tmp, 1, True)
 		gap //= 2
 				
-@SortingAlgorithm("Quick Sort", group="exchange")
+@SortingAlgorithm("Quick Sort", group="exchange", default_sleep_ratio=0.14)
 def QuickSort(array, vis):
 	def partition(start, end, pivot):
 		while start < end:
 			while start < end and vis.compare_values(array[start], pivot) < 0:
 				vis.mark(1, start)
-				vis.sleep(7)
+				vis.sleep(1)
 				start += 1
 			while start < end and vis.compare_values(array[end], pivot) > 0:
 				vis.mark(1, end)
-				vis.sleep(7)
+				vis.sleep(1)
 				end -= 1
 			if start < end:
-				vis.swap(array, start, end, 7, True)
+				vis.swap(array, start, end, 1, True)
 		return start
 		
 	def wrapper(start, end):
@@ -646,7 +650,7 @@ def QuickSort(array, vis):
 		
 	wrapper(0, len(array) - 1)
 	
-@SortingAlgorithm("Heap Sort", group="selection")
+@SortingAlgorithm("Heap Sort", group="selection", default_sleep_ratio=0.07)
 def HeapSort(array, vis):
 	def sift_down(root, dist, start, sleep):
 		while root <= dist // 2:
@@ -669,9 +673,9 @@ def HeapSort(array, vis):
 			vis.swap(array, start, start + i - 1, sleep, True)
 			sift_down(1, i - 1, start, sleep)
 			
-	heap_sort(0, len(array) - 1, 15)
+	heap_sort(0, len(array) - 1, 1)
 	
-@SortingAlgorithm("Circle Sort", group="exchange")
+@SortingAlgorithm("Circle Sort", group="exchange", default_sleep_ratio=0.1)
 def CircleSort(array, vis):
 	def circle(start, end):
 		if start >= end:
@@ -680,11 +684,11 @@ def CircleSort(array, vis):
 		i = start
 		j = end
 		while i < j:
-			if vis.comp_swap(array, i, j, 10, True):
+			if vis.comp_swap(array, i, j, 1, True):
 				swapped = True
 			i += 1
 			j -= 1
-		if i == j and vis.comp_swap(array, i, j + 1, 10, True):
+		if i == j and vis.comp_swap(array, i, j + 1, 1, True):
 			swapped = True
 		mid = (start + end) // 2
 		swapped |= circle(start, mid)
@@ -694,7 +698,7 @@ def CircleSort(array, vis):
 	while circle(0, len(array) - 1):
 		pass
 				
-@SortingAlgorithm("Merge Sort", group="merge")
+@SortingAlgorithm("Merge Sort", group="merge", default_sleep_ratio=0.125)
 def MergeSort(array, vis):
 	tmp = VisArray(len(array))
 	def merge(start, mid, end):
@@ -702,7 +706,7 @@ def MergeSort(array, vis):
 		j = mid + 1
 		k = start
 		while i <= mid and j <= end:
-			if vis.compare_indices(array, i, j, 8, True) <= 0:
+			if vis.compare_indices(array, i, j, 1, True) <= 0:
 				vis.write(tmp, k, array[i], 0, False)
 				i += 1
 			else:
@@ -712,19 +716,19 @@ def MergeSort(array, vis):
 		while i <= mid:
 			vis.mark(1, i)
 			vis.write(tmp, k, array[i], 0, False)
-			vis.sleep(8)
+			vis.sleep(1)
 			i += 1
 			k += 1
 		while j <= end:
 			vis.mark(2, j)
 			vis.write(tmp, k, array[j], 0, False)
-			vis.sleep(8)
+			vis.sleep(1)
 			j += 1
 			k += 1
 		vis.clear_mark(2)
 		i = start
 		while i <= end:
-			vis.write(array, i, tmp[i], 8, True)
+			vis.write(array, i, tmp[i], 1, True)
 			i += 1
 			
 	def wrapper(start, end):
@@ -736,7 +740,7 @@ def MergeSort(array, vis):
 			
 	wrapper(0, len(array) - 1)
 	
-@SortingAlgorithm("Counting Sort", group="distribution")
+@SortingAlgorithm("Counting Sort", group="distribution", default_sleep_ratio=0.07)
 def CountingSort(array, vis):
 	maximum = vis.analyze_max(array, 0, False)
 	counts = VisArray(maximum, scale_by_max=True)
@@ -744,22 +748,22 @@ def CountingSort(array, vis):
 		idx = array[i] - 1
 		vis.write(counts, idx, counts[idx] + 1, 0, True)
 		vis.mark(1, i)
-		vis.sleep(15)
+		vis.sleep(1)
 	vis.clear_all_marks()
 	counts.override_hscale(sum(counts))
 	for i in range(1, len(array)):
-		vis.write(counts, i, counts[i] + counts[i - 1], 15, True)
+		vis.write(counts, i, counts[i] + counts[i - 1], 1, True)
 	output = VisArray(len(array))
 	output.override_hscale(max(array))
 	for i in range(len(array)):
-		vis.write(counts, array[i] - 1, counts[array[i] - 1] - 1, 8, True)
-		vis.write(output, counts[array[i] - 1], array[i], 8, True)
+		vis.write(counts, array[i] - 1, counts[array[i] - 1] - 1, 0.5, True)
+		vis.write(output, counts[array[i] - 1], array[i], 0.5, True)
 	counts.release()
 	output.clear_all_marks()
 	for i in range(len(array)):
-		vis.write(array, i, output[i], 15, True)
+		vis.write(array, i, output[i], 1, True)
 		
-@SortingAlgorithm("Pigeonhole Sort", group="distribution")
+@SortingAlgorithm("Pigeonhole Sort", group="distribution", default_sleep_ratio=0.07)
 def PigeonholeSort(array, vis):
 	maxi = array[0]
 	mini = array[0]
@@ -772,15 +776,15 @@ def PigeonholeSort(array, vis):
 	holes = VisArray(maxi - mini + 1, scale_by_max=True)
 	for i in range(len(array)):
 		vis.mark(1, i)
-		vis.write(holes, array[i] - mini, holes[array[i] - mini] + 1, 15, True)
+		vis.write(holes, array[i] - mini, holes[array[i] - mini] + 1, 1, True)
 	index = 0
 	for count in range(len(holes)):
 		while holes[count] > 0:
-			vis.write(holes, count, holes[count] - 1, 8, True)
-			vis.write(array, index, count + mini, 8, True)
+			vis.write(holes, count, holes[count] - 1, 0.5, True)
+			vis.write(array, index, count + mini, 0.5, True)
 			index += 1
 			
-@SortingAlgorithm("Bitonic Sort", group="concurrent")
+@SortingAlgorithm("Bitonic Sort", group="concurrent", default_sleep_ratio=0.1)
 def BitonicSort(array, vis):
 	def greatest_power_of_2_less_than(n):
 		k = 1
@@ -792,7 +796,7 @@ def BitonicSort(array, vis):
 		if length > 1:
 			m = greatest_power_of_2_less_than(length)
 			for i in range(start, start + length - m):
-				vis.comp_swap(array, i, i + m, 15, True, reverse=dir)
+				vis.comp_swap(array, i, i + m, 1, True, reverse=dir)
 			bitonic_merge(start, m, dir)
 			bitonic_merge(start + m, length - m, dir)
 			
@@ -805,7 +809,7 @@ def BitonicSort(array, vis):
 			
 	bitonic_sort(0, len(array), False)
 	
-@SortingAlgorithm("Radix LSD Sort (Base 4)", group="distribution")
+@SortingAlgorithm("Radix LSD Sort (Base 4)", group="distribution", default_sleep_ratio=0.08)
 def RadixSort(array, vis):
 	highest_power = vis.analyze_max_log(array, 4, 12, True)
 	registers = [VisArrayList(len(array)) for _ in range(4)]
@@ -814,16 +818,16 @@ def RadixSort(array, vis):
 			vis.mark(1, i)
 			digit = vis.get_digit(array[i], p, 4)
 			registers[digit].append(array[i])
-			vis.sleep(12)
+			vis.sleep(1)
 		j = 0
 		for register in registers:
 			for i in range(len(register)):
-				vis.write(array, j, register[i], 12, True)
+				vis.write(array, j, register[i], 1, True)
 				j += 1
 		for register in registers:
 			register.clear()
 			
-@SortingAlgorithm("Radix MSD Sort (Base 4)", group="distribution")
+@SortingAlgorithm("Radix MSD Sort (Base 4)", group="distribution", default_sleep_ratio=0.08)
 def RadixMSDSort(array, vis):
 	def radix(start, end, base, pow):
 		if start >= end or pow < 0:
@@ -835,28 +839,28 @@ def RadixMSDSort(array, vis):
 			vis.mark(1, i)
 			digit = vis.get_digit(array[i], pow, 4)
 			registers[digit].append(array[i])
-			vis.sleep(12)
+			vis.sleep(1)
 		index = start
 		for register in registers:
 			for i in range(len(register)):
-				vis.write(array, index, register[i], 12, True)
+				vis.write(array, index, register[i], 1, True)
 				index += 1
 		sum = 0
 		for i in range(len(registers)):
 			radix(sum + start, sum + start + len(registers[i]) - 1, base, pow - 1)
 			sum += len(registers[i])
 			register.release()
-	highest_power = vis.analyze_max_log(array, 4, 12, True)
+	highest_power = vis.analyze_max_log(array, 4, 1, True)
 	radix(0, len(array) - 1, 4, highest_power)
 
-@SortingAlgorithm("[4, 4] Van Voorhis Sorting Network (Recursive)", group="concurrent")
+@SortingAlgorithm("[4, 4] Van Voorhis Sorting Network (Recursive)", group="concurrent", default_sleep_ratio=0.04)
 def VanVoorhis_4_4_Sort(array, vis):
 	arr_len = len(array)
 	end = arr_len - 1
 	
 	def comp_swap(a, b):
 		if a <= end and b <= end:
-			vis.comp_swap(array, a, b, 25, True)
+			vis.comp_swap(array, a, b, 1, True)
 	
 	def merge(start, n, g):
 		if start >= end:
@@ -902,13 +906,13 @@ def VanVoorhis_4_4_Sort(array, vis):
 	next_pow_4 = 4 ** lg
 	sort(0, next_pow_4)
 	
-@SortingAlgorithm("Hybrid Comb Sort", group="hybrid")
+@SortingAlgorithm("Hybrid Comb Sort", group="hybrid", default_sleep_ratio=0.15)
 def HybridCombSort(array, vis):
 	gap = len(array) * 10 // 13
 	min_gap = min(8, len(array) // 32)
 	while gap > min_gap:
 		for i in range(len(array) - gap):
-			vis.comp_swap(array, i, i + gap, 7, True)
+			vis.comp_swap(array, i, i + gap, 1, True)
 		if gap > 1:
 			gap = gap*10//13
 	vis.clear_mark(2)			
@@ -916,15 +920,15 @@ def HybridCombSort(array, vis):
 		tmp = array[i]
 		j = i - 1
 		while j >= 0 and vis.compare_values(array[j], tmp) > 0:
-			vis.write(array, j + 1, array[j], 5, True)
+			vis.write(array, j + 1, array[j], 1, True)
 			j -= 1
-		vis.write(array, j + 1, tmp, 5, True)
+		vis.write(array, j + 1, tmp, 1, True)
 			
-@SortingAlgorithm("Stooge Sort", group="impractical")
+@SortingAlgorithm("Stooge Sort", group="impractical", default_sleep_ratio=3.5)
 def StoogeSort(array, vis):
 	def stooge(start, end):
 		if start < end:
-			vis.comp_swap(array, start, end, 0.3, True)
+			vis.comp_swap(array, start, end, 1, True)
 			if end - start > 1:
 				third = (end - start + 1) // 3
 				stooge(start, end - third)
@@ -932,18 +936,16 @@ def StoogeSort(array, vis):
 				stooge(start, end - third)
 	stooge(0, len(array) - 1)
 	
-@SortingAlgorithm("Slow Sort", group="impractical")
+@SortingAlgorithm("Slow Sort", group="impractical", default_sleep_ratio=10)
 def SlowSort(array, vis):
 	def slowsort(start, end):
 		if start < end:
 			mid = (start + end) // 2
 			slowsort(start, mid)
 			slowsort(mid + 1, end)
-			vis.comp_swap(array, mid, end, 0.1, True)
+			vis.comp_swap(array, mid, end, 1, True)
 			slowsort(start, end - 1)
 	slowsort(0, len(array) - 1)
-	
-
 	
 def choose_sort():
 	group_str = [ "Enter the number corresponding to the category of sorting algorithm" ]
