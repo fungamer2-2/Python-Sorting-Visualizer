@@ -140,6 +140,7 @@ class Visualizer():
 		for i in range(len(self.main_array)):
 			if i < len(self.main_array) - 1:
 				if self.main_array[i] > self.main_array[i + 1]:
+					self.update()
 					messagebox.showerror("Sorting failed", f"The sorting algorithm was unsuccessful.\nItems {i} and {i + 1} are out of order.")
 					self.mark_finish = -1
 					return
@@ -149,8 +150,6 @@ class Visualizer():
 		self.update()
 		
 	def sleep(self, ms):
-		if random.randint(1, 300) == 1:
-			print(f"Sleep ms: {ms}")
 		self.delay_count += ms / self.sleep_ratio
 		if self.delay_count > 0:
 			start = time.time()
@@ -500,6 +499,9 @@ group_names = [
 
 algorithms = [[] for _ in range(len(group_names))]
 
+class CancelSort(Exception):
+	pass
+
 class SortingAlgorithm:
 	
 	def __init__(self, name, *, disabled=False, group=None, default_sleep_ratio=1):
@@ -521,8 +523,11 @@ class SortingAlgorithm:
 		
 	def run(self):
 		vis.sleep_ratio = self.default_sleep_ratio
-		self.func(arr, vis)
-		vis.display_finish_animation()
+		try:
+			self.func(arr, vis)
+			vis.display_finish_animation()
+		except CancelSort:
+			vis.sleep_ratio = 1
 
 @SortingAlgorithm("Bubble Sort", group="exchange", default_sleep_ratio=0.24)		
 def BubbleSort(array, vis):
@@ -558,7 +563,46 @@ def SelectionSort(array, vis):
 		for j in range(i + 1, len(array)):
 			if vis.compare_indices(array, j, m, 1, True) < 0:
 				m = j
-		vis.swap(array, i, m, 1, True)	
+		vis.swap(array, i, m, 1, True)
+		
+@SortingAlgorithm("Double Selection Sort", group="selection", default_sleep_ratio=0.25)
+def DoubleSelectionSort(array, vis):
+	start = 0
+	end = len(array) - 1
+	while start < end:
+		mini = start
+		maxi = end
+		for i in range(start, end + 1):
+			if vis.compare_indices(array, i, mini, 0, False) < 0:
+				mini = i
+			if vis.compare_indices(array, i, maxi, 0, False) > 0:
+				maxi = i
+			vis.mark(1, i)
+			vis.mark(2, maxi)
+			vis.mark(3, mini)
+			vis.sleep(1)
+		vis.swap(array, start, mini, 1, True)
+		vis.swap(array, end, maxi, 1, True)
+		start += 1
+		end -= 1
+		
+@SortingAlgorithm("Stable Selection Sort", group="selection", default_sleep_ratio=0.25)
+def StableSelectionSort(array, vis):
+	for i in range(len(array) - 1):
+		m = i
+		for j in range(i + 1, len(array)):
+			vis.mark(1, j)
+			if vis.compare_indices(array, j, m, 0, False) < 0:
+				m = j
+				vis.mark(2, j)
+			vis.sleep(1)
+		vis.clear_mark(2)
+		tmp = array[m]
+		pos = m
+		while pos > i:
+			vis.write(array, pos, array[pos - 1], 0.5, True)
+			pos -= 1
+		vis.write(array, pos, tmp, 0.5, True)
 
 @SortingAlgorithm("Insertion Sort", group="insertion", default_sleep_ratio=0.25)
 def InsertionSort(array, vis):
@@ -566,6 +610,30 @@ def InsertionSort(array, vis):
 		tmp = array[i]
 		j = i - 1
 		while j >= 0 and vis.compare_values(array[j], tmp) > 0:
+			vis.write(array, j + 1, array[j], 1, True)
+			j -= 1
+		vis.write(array, j + 1, tmp, 1, True)
+		
+@SortingAlgorithm("Binary Insertion Sort", group="insertion", default_sleep_ratio=0.25)
+def BinaryInsertionSort(array, vis):
+	def binary_search(start, end, value):
+		while start < end:
+			mid = (start + end) // 2
+			vis.mark(1, start)
+			vis.mark(2, mid)
+			vis.mark(3, end)
+			if vis.compare_values(array[mid], value) <= 0:
+				start = mid + 1
+			else:
+				end = mid
+			vis.sleep(8)
+		vis.clear_all_marks()
+		return start
+	for i in range(1, len(array)):
+		tmp = array[i]
+		j = i - 1
+		pos = binary_search(0, i, array[i])
+		while j >= pos:
 			vis.write(array, j + 1, array[j], 1, True)
 			j -= 1
 		vis.write(array, j + 1, tmp, 1, True)
@@ -650,8 +718,8 @@ def QuickSort(array, vis):
 		
 	wrapper(0, len(array) - 1)
 	
-@SortingAlgorithm("Heap Sort", group="selection", default_sleep_ratio=0.07)
-def HeapSort(array, vis):
+@SortingAlgorithm("Max Heap Sort", group="selection", default_sleep_ratio=0.07)
+def MaxHeapSort(array, vis):
 	def sift_down(root, dist, start, sleep):
 		while root <= dist // 2:
 			leaf = 2 * root
@@ -674,6 +742,37 @@ def HeapSort(array, vis):
 			sift_down(1, i - 1, start, sleep)
 			
 	heap_sort(0, len(array) - 1, 1)
+	
+@SortingAlgorithm("Min Heap Sort", group="selection", default_sleep_ratio=0.07)
+def MinHeapSort(array, vis):
+	def sift_down(root, dist, start, sleep):
+		while root <= dist // 2:
+			leaf = 2 * root
+			if leaf < dist and vis.compare_indices(array, start + leaf - 1, start + leaf, 0, False) > 0:
+				leaf += 1
+			if vis.comp_swap(array, start + root - 1, start + leaf - 1, sleep, True):
+				root = leaf
+			else:
+				break
+				
+	def heapify(start, end, sleep):
+		length = end - start + 1
+		for i in reversed(range(1, length//2 + 1)):
+			sift_down(i, length, start, sleep)
+	
+	def heap_sort(start, end, sleep):
+		heapify(start, end, sleep)
+		for i in reversed(range(2, end - start + 2)):
+			vis.swap(array, start, start + i - 1, sleep, True)
+			sift_down(1, i - 1, start, sleep)
+			
+	heap_sort(0, len(array) - 1, 1)
+	start = 0
+	end = len(array) - 1
+	while (start < end):
+		vis.swap(array, start, end, 1, True)
+		start += 1
+		end -= 1
 	
 @SortingAlgorithm("Circle Sort", group="exchange", default_sleep_ratio=0.1)
 def CircleSort(array, vis):
@@ -906,6 +1005,232 @@ def VanVoorhis_4_4_Sort(array, vis):
 	next_pow_4 = 4 ** lg
 	sort(0, next_pow_4)
 	
+@SortingAlgorithm("Buffered Bitonic Sort", group="hybrid", default_sleep_ratio=0.08)
+def BufferedBitonicSort(array, vis):	
+	def insertion_sort(start, end, sleep=1):
+		for i in range(start + 1, end + 1):
+			tmp = array[i]
+			j = i - 1
+			while j >= start and vis.compare_values(array[j], tmp) > 0:
+				vis.write(array, j + 1, array[j], sleep, True)
+				j -= 1
+			vis.write(array, j + 1, tmp, sleep, True)
+			
+	def blockswap(start1, start2, length):
+		for i in range(length):
+			vis.swap(array, start1 + i, start2 + i, 1, True)
+	
+	def reverse(start, end):
+		while start < end:
+			vis.swap(array, start, end, 1, True)
+			start += 1
+			end -= 1
+		
+	blocksize = math.isqrt(len(array))
+	bufsize = 2 * blocksize
+	if len(array) <= 8:
+		insertion_sort(0, len(array) - 1)
+		return
+		
+	def merge_bitonic(start, mid, end, buffer, fw):
+		i = start
+		j = end
+		k = buffer
+		cmp = -1 if fw else 1
+		while i <= mid and j > mid:
+			if vis.compare_indices(array, i, j, 0, False) == cmp:
+				vis.swap(array, i, k, 1, True)
+				i += 1
+			else:
+				vis.swap(array, j, k, 1, True)
+				j -= 1
+			k += 1
+		while i <= mid:
+			vis.swap(array, i, k, 1, True)
+			i += 1
+			k += 1
+		while j > mid:
+			vis.swap(array, j, k, 1, True)
+			j -= 1
+			k += 1
+		for o in range(end - start + 1):
+			vis.swap(array, start + o, buffer + o, 1, True)
+			i += 1
+			
+	def merge_simple(start, mid, end, buffer):
+		len1 = mid - start + 1  
+		len2 = end - mid
+		if len1 <= len2:
+			blockswap(start, buffer, len1)
+			i = buffer
+			j = mid + 1
+			k = start
+			while i < buffer + len1 and j <= end:
+				if vis.compare_indices(array, i, j, 0, False) <= 0:
+					vis.swap(array, i, k, 1, True)
+					i += 1
+				else:
+					vis.swap(array, j, k, 1, True)
+					j += 1
+				k += 1
+			while i < buffer + len1:
+				vis.swap(array, i, k, 1, True)
+				i += 1
+				k += 1
+		else:
+			blockswap(mid + 1, buffer, len2)
+			i = mid
+			j = buffer + len2 - 1
+			k = end
+			while i >= start and j >= buffer:
+				if vis.compare_indices(array, i, j, 0, False) > 0:
+					vis.swap(array, i, k, 1, True)
+					i -= 1
+				else:
+					vis.swap(array, j, k, 1, True)
+					j -= 1
+				k -= 1
+			while j >= buffer:
+				vis.swap(array, j, k, 1, True)
+				j -= 1
+				k -= 1
+				
+	def merge_simple_bw(start, mid, end, buffer):
+		len1 = mid - start + 1  
+		len2 = end - mid
+		if len1 <= len2:
+			blockswap(start, buffer, len1)
+			i = buffer
+			j = mid + 1
+			k = start
+			while i < buffer + len1 and j <= end:
+				if vis.compare_indices(array, i, j, 0, False) >= 0:
+					vis.swap(array, i, k, 1, True)
+					i += 1
+				else:
+					vis.swap(array, j, k, 1, True)
+					j += 1
+				k += 1
+			while i < buffer + len1:
+				vis.swap(array, i, k, 1, True)
+				i += 1
+				k += 1
+		else:
+			blockswap(mid + 1, buffer, len2)
+			i = mid
+			j = buffer + len2 - 1
+			k = end
+			while i >= start and j >= buffer:
+				if vis.compare_indices(array, i, j, 0, False) < 0:
+					vis.swap(array, i, k, 1, True)
+					i -= 1
+				else:
+					vis.swap(array, j, k, 1, True)
+					j -= 1
+				k -= 1
+			while j >= buffer:
+				vis.swap(array, j, k, 1, True)
+				j -= 1
+				k -= 1
+				
+	def binary_search(start, end, value):
+		while start < end:
+			mid = (start + end) // 2
+			vis.mark(1, mid)
+			if vis.compare_values(array[mid], value) <= 0:
+				start = mid + 1
+			else:
+				end = mid
+			vis.sleep(4)
+		return start
+		
+	def bw_binary_search(start, end, value):
+		while start < end:
+			mid = (start + end) // 2
+			vis.mark(1, mid)
+			if vis.compare_values(array[mid], value) >= 0:
+				start = mid + 1
+			else:
+				end = mid
+			vis.sleep(4)
+		return start
+			
+	def rotate(start, split, end):
+		len1 = split - start + 1
+		len2 = end - split
+		while len1 > 0 and len2 > 0:
+			if len1 <= len2:
+				blockswap(start, start + len1, len1)
+				start += len1
+				len2 -= len1
+			else:
+				blockswap(start + (len1 - len2), start + len1, len2)
+				len1 -= len2
+			
+	def bufbitonicblockmerge(start, mid, end, buffer, fw):
+		start1 = start + (mid - start + 1) % blocksize
+		end1 = end - (end - mid) % blocksize
+		for i in range(start1, end1, blocksize):
+			minpos = i
+			minblock = i
+			for j in range(i, end1, blocksize):
+				backward = vis.compare_indices(array, j, j + blocksize - 1, 0, False) == 1
+				if backward ^ (not fw):
+					pos = j + blocksize - 1
+				else:
+					pos = j
+				cmp = -1 if fw else 1
+				if vis.compare_indices(array, pos, minpos, 1, True) == cmp:
+					minpos = pos
+					minblock = j
+			blockswap(i, minblock, blocksize)
+		for i in range(start1, end1 - blocksize, blocksize):
+			fw1 = vis.compare_indices(array, i, i + blocksize - 1, 1, True) <= 0
+			fw2 = vis.compare_indices(array, i + blocksize, i + 2 * blocksize - 1, 1, True) <= 0
+			if fw1 ^ fw:
+				reverse(i, i + blocksize - 1)
+			if fw2 ^ (not fw):
+				reverse(i + blocksize, i + 2 * blocksize - 1)		
+			merge_bitonic(i, i + blocksize - 1, i + 2 * blocksize - 1, buffer, fw)
+		if start < start1:
+			if fw:
+				merge_simple(start, start1 - 1, end1, buffer)
+			else:
+				merge_simple_bw(start, start1 - 1, end1, buffer)
+		if end1 < end:
+			reverse(end1 + 1, end)
+			if fw:
+				merge_simple(start, end1, end, buffer)
+			else:
+				merge_simple_bw(start, end1, end, buffer)
+			
+	def bufbitonicmerge(start, mid, end, buffer, fw):
+		if end - start + 1 <= bufsize:
+			merge_bitonic(start, mid, end, buffer, fw)
+		else:
+			bufbitonicblockmerge(start, mid, end, buffer, fw)
+		
+	def bufbitonic(start, end, buffer, fw):
+		if end - start == 1:
+			vis.comp_swap(array, start, end, 1, True, reverse=not fw)
+		elif end - start > 1:
+			mid = (start + end) // 2
+			bufbitonic(start, mid, buffer, fw)
+			bufbitonic(mid + 1, end, buffer, not fw)
+			bufbitonicmerge(start, mid, end, buffer, fw)
+	
+	bufbitonic(bufsize, len(array) - 1, 0, True)
+	size = bufsize
+	while size > 1:
+		num = size // 2
+		insertion_sort(size - num, size - 1)
+		merge_simple(size - num, size - 1, len(array) - 1, 0)
+		size -= num
+	i = 0
+	while i < len(array) - 1 and vis.compare_indices(array, i, i + 1, 0, False) == 1:
+		vis.swap(array, i, i + 1, 1, True)
+		i += 1
+	
 @SortingAlgorithm("Hybrid Comb Sort", group="hybrid", default_sleep_ratio=0.15)
 def HybridCombSort(array, vis):
 	gap = len(array) * 10 // 13
@@ -950,8 +1275,10 @@ def SlowSort(array, vis):
 def choose_sort():
 	group_str = [ "Enter the number corresponding to the category of sorting algorithm" ]
 	for id, sort in enumerate(algorithms):
-		if len(algorithms[id]) > 0:
-			group_str.append(f"{id+1} - {group_names[id]}")
+		num_sorts = len(algorithms[id])
+		if num_sorts > 0:
+			s = "sort" if num_sorts == 1 else "sorts"
+			group_str.append(f"{id+1} - {group_names[id]} ({len(algorithms[id])} {s})")
 	group_str = "\n".join(group_str)
 	done = False
 	while not done:
