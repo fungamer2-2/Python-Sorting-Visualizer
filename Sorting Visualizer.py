@@ -1,5 +1,4 @@
 from collections.abc import Collection, MutableSequence
-from enum import Enum
 import tkinter as tk
 import random, time, math, sys
 from tkinter import simpledialog, messagebox
@@ -28,7 +27,7 @@ class Timer():
 		self.start = -1
 		
 	def get_time(self):
-		if self._time == None:
+		if self._time is None:
 			raise ValueError("at least one lap needs to be completed before calling get_time()")
 		return self._time
 		
@@ -80,8 +79,6 @@ class Visualizer():
 		random.shuffle(self.main_array._data)
 		self.rects = [None] * len(arr)
 		self.marklist.clear()
-		width = self.canvas.winfo_width()
-		height = self.canvas.winfo_height()
 		self.update()
 		
 	def reset_stats(self):
@@ -102,7 +99,6 @@ class Visualizer():
 		height_ratio = len(self.aux_arrays) + 1
 		self.canvas.delete("all")
 		for i in range(len(arr)):
-			x = width * i / len(arr)
 			bar = height / height_ratio * arr[i] / len(arr)
 			marked = self.marklist.is_position_marked(i)
 			if i < self.mark_finish:
@@ -119,7 +115,6 @@ class Visualizer():
 			if hscale < 1: #Prevent division by zero
 				hscale = 1 
 			for i in range(length):
-				x = width * i / length
 				begin = height - (height * (j + 1) / height_ratio)
 				if type(arr) == VisArrayList and i >= len(arr):
 					val = 0
@@ -157,7 +152,6 @@ class Visualizer():
 			end = time.time()
 			t = (end - start) * 1000
 			self.delay_count -= t
-			start = time.time()
 			while self.delay_count > 0:
 				time.sleep(10 / 1000)
 				self.delay_count -= 10
@@ -1133,40 +1127,6 @@ def BufferedBitonicSort(array, vis):
 				j -= 1
 				k -= 1
 				
-	def binary_search(start, end, value):
-		while start < end:
-			mid = (start + end) // 2
-			vis.mark(1, mid)
-			if vis.compare_values(array[mid], value) <= 0:
-				start = mid + 1
-			else:
-				end = mid
-			vis.sleep(4)
-		return start
-		
-	def bw_binary_search(start, end, value):
-		while start < end:
-			mid = (start + end) // 2
-			vis.mark(1, mid)
-			if vis.compare_values(array[mid], value) >= 0:
-				start = mid + 1
-			else:
-				end = mid
-			vis.sleep(4)
-		return start
-			
-	def rotate(start, split, end):
-		len1 = split - start + 1
-		len2 = end - split
-		while len1 > 0 and len2 > 0:
-			if len1 <= len2:
-				blockswap(start, start + len1, len1)
-				start += len1
-				len2 -= len1
-			else:
-				blockswap(start + (len1 - len2), start + len1, len2)
-				len1 -= len2
-			
 	def bufbitonicblockmerge(start, mid, end, buffer, fw):
 		start1 = start + (mid - start + 1) % blocksize
 		end1 = end - (end - mid) % blocksize
@@ -1284,7 +1244,7 @@ def choose_sort():
 	while not done:
 		while True:
 			num = None	
-			while num == None:
+			while num is None:
 				num = simpledialog.askinteger("Choose Sort Category", group_str)
 			if 1 <= num <= len(algorithms):
 				break
@@ -1300,7 +1260,7 @@ def choose_sort():
 		
 		while True:
 			num = None	
-			while num == None:
+			while num is None:
 				num = simpledialog.askinteger("Choose Sort", sort_str)
 			if 0 <= num <= len(algs):
 				done = num > 0
