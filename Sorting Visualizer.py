@@ -606,6 +606,7 @@ def RollSort(array, vis):
 		for j in range(i + 1, len(array)):
 			if vis.compare_indices(array, j, m, 1, True) < 0:
 				m = j
+		vis.clear_mark(3)
 		diff = m - i
 		for _ in range(diff):
 			for j in range(i, len(array) - 1):
