@@ -474,7 +474,7 @@ root = tk.Tk()
 root.configure(bg="black")
 root.geometry("1720x720")
 
-arr = VisArray(128, init_sorted=True)	
+arr = VisArray(32, init_sorted=True)	
 vis = Visualizer(root)
 vis.set_main_array(arr)
 VisArray.set_visualizer(vis)
@@ -597,6 +597,20 @@ def StableSelectionSort(array, vis):
 			vis.write(array, pos, array[pos - 1], 0.5, True)
 			pos -= 1
 		vis.write(array, pos, tmp, 0.5, True)
+		
+@SortingAlgorithm("Roll Sort", group="selection", default_sleep_ratio=0.1)
+def RollSort(array, vis):
+	for i in range(len(array) - 1):
+		m = i
+		vis.mark(3, i)
+		for j in range(i + 1, len(array)):
+			if vis.compare_indices(array, j, m, 1, True) < 0:
+				m = j
+		diff = m - i
+		for _ in range(diff):
+			for j in range(i, len(array) - 1):
+				vis.swap(array, j, j + 1, 0.2, True)
+		
 
 @SortingAlgorithm("Insertion Sort", group="insertion", default_sleep_ratio=0.25)
 def InsertionSort(array, vis):
@@ -790,6 +804,33 @@ def CircleSort(array, vis):
 		
 	while circle(0, len(array) - 1):
 		pass
+		
+@SortingAlgorithm("Monte Carlo Sort", group="exchange", default_sleep_ratio=1)
+def MonteCarloSort(array, vis):
+	PROB = 75
+	for i in reversed(range(1, len(array))):
+		while True:
+			ind = random.randint(0, i)
+			count = 0
+			for j in range(i + 1):
+				cmp = vis.compare_indices(array, ind, j, 1, True)
+				if random.randint(1, 100) > PROB:
+					cmp = -cmp
+				if cmp < 0:
+					count += 1
+			perc = PROB/100
+			accept_prob = ((1 - perc)/perc)**count
+			if random.random() < accept_prob:
+				vis.swap(array, i, ind, 0.00002, True)
+				break
+	vis.clear_mark(2)
+	for i in range(1, len(array)):
+		tmp = array[i]
+		j = i - 1
+		while j >= 0 and vis.compare_values(array[j], tmp) > 0:
+			vis.write(array, j + 1, array[j], 1, True)
+			j -= 1
+		vis.write(array, j + 1, tmp, 1, True)
 				
 @SortingAlgorithm("Merge Sort", group="merge", default_sleep_ratio=0.125)
 def MergeSort(array, vis):
@@ -1190,6 +1231,63 @@ def BufferedBitonicSort(array, vis):
 	while i < len(array) - 1 and vis.compare_indices(array, i, i + 1, 0, False) == 1:
 		vis.swap(array, i, i + 1, 1, True)
 		i += 1
+		
+@SortingAlgorithm("Bitonic Rotate Merge Sort", group="merge", default_sleep_ratio=0.08)
+def BitonicRotateMergeSort(array, vis):
+	def blockswap(start1, start2, length):
+		for i in range(length):
+			vis.swap(array, start1 + i, start2 + i, 1, True)
+	
+	def binary_search(start, end, value, fw):
+		cmp = -1 if fw else 1
+		while start < end:
+			mid = (start + end) // 2
+			if vis.compare_values(array[start], value) == cmp:
+				start = mid + 1
+			else:
+				end = mid
+		return start
+		
+	def insertion_sort(start, end, sleep=1, dir=True):
+		cmp = 1 if dir else -1
+		for i in range(start + 1, end + 1):
+			tmp = array[i]
+			j = i - 1
+			while j >= start and vis.compare_values(array[j], tmp) == cmp:
+				vis.write(array, j + 1, array[j], sleep, True)
+				j -= 1
+			vis.write(array, j + 1, tmp, sleep, True)
+
+	
+	def rotate(start, split, end):
+		len1 = split - start + 1
+		len2 = end - split
+		while len1 > 0 and len2 > 0:
+			if len1 <= len2:
+				blockswap(start, start + len1, len1)
+				start += len1
+				len2 -= len1
+			else:
+				blockswap(start + (len1 - len2), start + len1, len2)
+				len1 -= len2
+				
+	def bitonic_rotate_merge(start, mid, end, dir):
+		if end - start < 1:
+			return
+		if end - start == 1:
+			vis.comp_swap(array, start, end, 1, True, reverse=not dir)
+			return		
+		m1 = (start + mid) // 2
+		m2 = binary_search(mid + 1, end, array[m1], dir)
+		rotate(start, m1, m2)
+		n1 = m1 - start + 1
+		n2 = ()
+		bitonic_rotate_merge(start, m1, mid, dir)
+		bitonic_rotate_merge(mid + 1, m2, end, dir)
+		
+	insertion_sort(0, 63, 0.05, False)
+	insertion_sort(64, 127, 0.05, True)
+	bitonic_rotate_merge(0, 63, 127, True)
 	
 @SortingAlgorithm("Hybrid Comb Sort", group="hybrid", default_sleep_ratio=0.15)
 def HybridCombSort(array, vis):
