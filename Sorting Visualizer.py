@@ -90,7 +90,11 @@ class Visualizer():
 		self.mark_finish = -1
 		
 	def update_statistics(self):
-		self.stat_var.set(f"Swaps: {self.swaps}\nComparisons: {self.comps}\nMain Array Writes: {self.writes}\nAuxiliary Array Writes: {self.aux_writes}\nAuxiliary Memory: {self.extra_space} items\nReal Time: {(self.real_time * 1000):.2f} ms")
+		if self.real_time < 1:
+			real_str = f"{(self.real_time * 1000):.2f} ms"
+		else:
+			real_str = f"{self.real_time:.3f} s"
+		self.stat_var.set(f"Swaps: {self.swaps}\nComparisons: {self.comps}\nMain Array Writes: {self.writes}\nAuxiliary Array Writes: {self.aux_writes}\nAuxiliary Memory: {self.extra_space} items\nReal Time: {real_str}")
 		
 	def update(self):
 		arr = self.main_array
@@ -1305,6 +1309,8 @@ def GeneticSort(array, vis):
 		k = lo
 		while i <= mid and j <= hi: 
 			# There will be no inversion if arr[i] <= arr[j] 
+			vis.comps += 1
+			vis.aux_writes += 1
 			if a[i] <= a[j]:
 				tmp[k] = a[i] 
 				k += 1
@@ -1316,12 +1322,14 @@ def GeneticSort(array, vis):
 				k += 1
 				j += 1
 	
-		while i <= mid: 
+		while i <= mid:
+			vis.aux_writes += 1
 			tmp[k] = a[i]
 			k += 1
 			i += 1
 	
 		while j <= hi:
+			vis.aux_writes += 1
 			tmp[k] = a[j] 
 			k += 1
 			j += 1
@@ -1409,15 +1417,16 @@ def GeneticSort(array, vis):
 		random.shuffle(population)
 		fitness = []
 		bestscore = -999
-		best = None
-		for p in population:
-			a = [orig[v] for v in p]
-			inv = count_inversions(a)
-			score = 100 / (inv+1)
-			fitness.append((p, 100*score))
-			if score > bestscore:
-				bestscore = score
-				best = p
+		with vis.timer:
+			best = None
+			for p in population:
+				a = [orig[v] for v in p]
+				inv = count_inversions(a)
+				score = 100 / (inv+1)
+				fitness.append((p, 100*score))
+				if score > bestscore:
+					bestscore = score
+					best = p
 		a = [orig[v] for v in best]
 		
 		for i in range(len(a)):
@@ -1428,27 +1437,27 @@ def GeneticSort(array, vis):
 		if ratio < 0.025:
 			break
 			
+		with vis.timer:	
+			fitness.sort(key=lambda p: p[1], reverse=True)
 			
-		fitness.sort(key=lambda p: p[1], reverse=True)
-		
-		
-		children = [fitness[i][0] for i in range(ELITES)]
-		
-		
-		while len(children) < POP_SIZE:
-			p1 = tourney_select(fitness, TOURNEY_SIZE)
-			p2 = tourney_select(fitness, TOURNEY_SIZE)
-			if random.random() < CROSSOVER_RATE:
-				c1, c2 = pmx(p1, p2)
-			else:
-				c1, c2 = p1.copy(), p2.copy()
-			mutate(c1)
-			children.append(c1)
-			if len(children) < POP_SIZE:
-				mutate(c2)
-				children.append(c2)
-		
-		population = children
+			
+			children = [fitness[i][0] for i in range(ELITES)]
+			
+			
+			while len(children) < POP_SIZE:
+				p1 = tourney_select(fitness, TOURNEY_SIZE)
+				p2 = tourney_select(fitness, TOURNEY_SIZE)
+				if random.random() < CROSSOVER_RATE:
+					c1, c2 = pmx(p1, p2)
+				else:
+					c1, c2 = p1.copy(), p2.copy()
+				mutate(c1)
+				children.append(c1)
+				if len(children) < POP_SIZE:
+					mutate(c2)
+					children.append(c2)
+			
+			population = children
 	
 	insertion_sort(0, len(array)-1, 15)
 		
