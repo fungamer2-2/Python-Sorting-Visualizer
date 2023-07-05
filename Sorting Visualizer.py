@@ -375,6 +375,7 @@ class VisArray(Collection):
 			self.marklist = MarkList()
 		else:
 			self.marklist = None
+ 
 				
 	def override_hscale(self, hscale):
 		self.hscale = hscale
@@ -474,7 +475,7 @@ root = tk.Tk()
 root.configure(bg="black")
 root.geometry("1720x720")
 
-arr = VisArray(32, init_sorted=True)	
+arr = VisArray(64, init_sorted=True)	
 vis = Visualizer(root)
 vis.set_main_array(arr)
 VisArray.set_visualizer(vis)
@@ -1274,6 +1275,183 @@ def SlowSort(array, vis):
 			slowsort(start, end - 1)
 	slowsort(0, len(array) - 1)
 	
+@SortingAlgorithm("Genetic Sort", default_sleep_ratio=1)
+def GeneticSort(array, vis):
+	#Inversion counter
+	def count_inversions(arr): 
+		arr = arr[:] #Create a copy so as not to modify the original
+		temp_arr = [0]*len(arr)
+		
+		count = inv_helper(arr, temp_arr, 0, len(arr)-1) 
+		
+		return count
+		
+	def inv_helper(a, tmp, left, right): 
+		inv_count = 0
+		if left < right: 
+			mid = (left + right)//2
+			inv_count += inv_helper(a, tmp, left, mid) 
+			inv_count += inv_helper(a, tmp, mid + 1, right) 
+			inv_count += _merge(a, tmp, left, mid, right) 
+			
+		return inv_count 
+		 
+	def _merge(a, tmp, lo, mid, hi):
+		#if a[mid] <= a[mid+1]:
+#			return 0
+		inv_count = 0
+		i = lo
+		j = mid + 1
+		k = lo
+		while i <= mid and j <= hi: 
+			# There will be no inversion if arr[i] <= arr[j] 
+			if a[i] <= a[j]:
+				tmp[k] = a[i] 
+				k += 1
+				i += 1
+			else: 
+				# Inversion will occur. 
+				tmp[k] = a[j] 
+				inv_count += (mid - i + 1)
+				k += 1
+				j += 1
+	
+		while i <= mid: 
+			tmp[k] = a[i]
+			k += 1
+			i += 1
+	
+		while j <= hi:
+			tmp[k] = a[j] 
+			k += 1
+			j += 1
+		for i in range(lo, hi + 1): 
+			a[i] = tmp[i] 
+		return inv_count 
+	
+	def pmx(parent1, parent2):
+		size = len(parent1)
+		child1 = parent1[:]
+		child2 = parent2[:]
+		
+		# Select two random crossover points
+		cxpoint1 = random.randint(0, size - 2)
+		cxpoint2 = random.randint(1, size - 1)
+		if cxpoint1 > cxpoint2:
+			cxpoint1, cxpoint2 = cxpoint2, cxpoint1
+		
+		m1 = {}
+		m2 = {}
+		# Copy the selected segment from parents to children
+		for i in range(cxpoint1, cxpoint2 + 1):	
+			child1[i] = parent2[i]
+			child2[i] = parent1[i]
+			m1[parent2[i]] = parent1[i]
+			m2[parent1[i]] = parent2[i]
+			
+	
+		for i in range(cxpoint1):
+			while child1[i] in m1:
+				child1[i] = m1[child1[i]]
+			while child2[i] in m2:
+				child2[i] = m2[child2[i]]
+					
+		for i in range(cxpoint2+1, size):
+			while child1[i] in m1:
+				child1[i] = m1[child1[i]]
+			while child2[i] in m2:
+				child2[i] = m2[child2[i]]
+		
+		
+		return child1, child2
+		
+	
+	POP_SIZE = 20
+	ELITES = 3
+	TOURNEY_SIZE = 6
+	CROSSOVER_RATE = 0.8
+	MUTATION_RATE = 0.07
+	
+	def tourney_select(pairs, k):
+		candidates = random.sample(pairs, k)
+		return max(candidates, key=lambda p: p[1])[0]
+	
+	def mutate(perm):
+		for i in range(len(perm)-1):
+			if random.random() < MUTATION_RATE:
+				j = random.randint(i, len(perm)-1)
+				perm[i], perm[j] = perm[j], perm[i]
+	
+	def triangular(n):
+		return (n * (n + 1))//2
+    
+	def max_inversions(n):
+		return triangular(n - 1)
+	
+	def insertion_sort(start, end, sleep=1):
+		for i in range(start + 1, end + 1):
+			tmp = array[i]
+			j = i - 1
+			while j >= start and vis.compare_values(array[j], tmp) > 0:
+				vis.write(array, j + 1, array[j], sleep, True)
+				j -= 1
+			vis.write(array, j + 1, tmp, sleep, True)
+			
+		
+	population = []
+	
+	for _ in range(POP_SIZE):
+		s = list(range(len(array)))
+		random.shuffle(s)
+		population.append(s)
+	orig = list(arr)
+	while True:
+		random.shuffle(population)
+		fitness = []
+		bestscore = -999
+		best = None
+		for p in population:
+			a = [orig[v] for v in p]
+			inv = count_inversions(a)
+			score = 100 / (inv+1)
+			fitness.append((p, 100*score))
+			if score > bestscore:
+				bestscore = score
+				best = p
+		a = [orig[v] for v in best]
+		
+		for i in range(len(a)):
+			vis.write(array, i, a[i], 1, True)
+			
+		ratio = count_inversions(a)/max_inversions(len(a))	
+		
+		if ratio < 0.025:
+			break
+			
+			
+		fitness.sort(key=lambda p: p[1], reverse=True)
+		
+		
+		children = [fitness[i][0] for i in range(ELITES)]
+		
+		
+		while len(children) < POP_SIZE:
+			p1 = tourney_select(fitness, TOURNEY_SIZE)
+			p2 = tourney_select(fitness, TOURNEY_SIZE)
+			if random.random() < CROSSOVER_RATE:
+				c1, c2 = pmx(p1, p2)
+			else:
+				c1, c2 = p1.copy(), p2.copy()
+			mutate(c1)
+			children.append(c1)
+			if len(children) < POP_SIZE:
+				mutate(c2)
+				children.append(c2)
+		
+		population = children
+	
+	insertion_sort(0, len(array)-1, 15)
+		
 def choose_sort():
 	group_str = [ "Enter the number corresponding to the category of sorting algorithm" ]
 	for id, sort in enumerate(algorithms):
@@ -1296,7 +1474,6 @@ def choose_sort():
 		algs = algorithms[num - 1]
 		sort_str = [ "Enter the number corresponding to the sorting algorithm you want to visualize", "0 - Back to category selection" ]
 		for id, sort in enumerate(algs):
-			print()
 			sort_str.append(f"{id+1} - {sort.name}")
 		sort_str = "\n".join(sort_str)
 		
