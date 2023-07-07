@@ -1423,7 +1423,7 @@ def GeneticSort(array, vis):
 				a = [orig[v] for v in p]
 				inv = count_inversions(a)
 				score = 100 / (inv+1)
-				fitness.append((p, 100*score))
+				fitness.append((p, score))
 				if score > bestscore:
 					bestscore = score
 					best = p
