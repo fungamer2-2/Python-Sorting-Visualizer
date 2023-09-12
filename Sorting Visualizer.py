@@ -324,38 +324,54 @@ class Visualizer():
 		with self.timer:
 			result = (a // radix**power) % radix
 		return result
-		
+
 class MarkList:
 		
 	def __init__(self):
 		self.marks = []
+		self.markcounts = []
 		
 	def _ensure_mark_capacity(self, n):
 		if len(self.marks) < n:
 			self.marks.extend([-1] * (n - len(self.marks)))
-	
+		
+	def _ensure_count_capacity(self, n):
+		if len(self.markcounts) < n:
+			self.markcounts.extend([0] * (n - len(self.markcounts)))
+		
+		
 	def mark(self, id, index):
 		if not isinstance(index, int):
 			raise TypeError("index must be an int")
 		if index < 0:
 			raise ValueError(f"invalid mark position: {index}")
 		self._ensure_mark_capacity(id + 1)
-		self.marks[id] = index
+		if self.marks[id] != index:
+			if self.marks[id] != -1:
+				self.markcounts[self.marks[id]] -= 1
+			
+			self.marks[id] = index
+			self._ensure_count_capacity(index + 1)
+			
+			self.markcounts[index] += 1
 		
 	def clear(self, id=None):
 		if id is None:
 			self.marks.clear()
-		elif id < len(self.marks):
+			self.markcounts.clear()
+		elif id < len(self.marks) and self.marks[id] != -1:
+			self.markcounts[self.marks[id]] -= 1
 			self.marks[id] = -1
+			
 			if id == len(self.marks) - 1:
 				last = next((i for i in reversed(range(len(self.marks))) if self.marks[id] != -1), None)
 				if last is None:
 					self.marks.clear()
-				else:
+				else:	
 					del self.marks[last+1:]
 					
 	def is_position_marked(self, index):
-		return any(mark == index for mark in self.marks) 
+		return index < len(self.markcounts) and self.markcounts[index] > 0
 		
 class VisArray(Collection):
 	vis = None
@@ -406,7 +422,7 @@ class VisArray(Collection):
 		
 	def release(self):
 		if self in self.vis.aux_arrays:
-			self.vis.aux_arrays.remove(self) 
+			self.vis.aux_arrays.remove(self)
 			self.vis.extra_space -= len(self._data)
 			self._data = []
 				
@@ -951,7 +967,7 @@ def BitonicSort(array, vis):
 	
 @SortingAlgorithm("Radix LSD Sort (Base 4)", group="distribution", default_sleep_ratio=0.08)
 def RadixSort(array, vis):
-	highest_power = vis.analyze_max_log(array, 4, 12, True)
+	highest_power = vis.analyze_max_log(array, 4, 1, True)
 	registers = [VisArrayList(len(array)) for _ in range(4)]
 	for p in range(highest_power + 1):
 		for i in range(len(array)):
@@ -985,11 +1001,14 @@ def RadixMSDSort(array, vis):
 			for i in range(len(register)):
 				vis.write(array, index, register[i], 1, True)
 				index += 1
+		
 		sum = 0
 		for i in range(len(registers)):
 			radix(sum + start, sum + start + len(registers[i]) - 1, base, pow - 1)
 			sum += len(registers[i])
+		for register in registers:
 			register.release()
+			
 	highest_power = vis.analyze_max_log(array, 4, 1, True)
 	radix(0, len(array) - 1, 4, highest_power)
 
