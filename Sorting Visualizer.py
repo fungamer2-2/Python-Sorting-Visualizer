@@ -479,7 +479,7 @@ root = tk.Tk()
 root.configure(bg="black")
 root.geometry("1720x720")
 
-arr = VisArray(64, init_sorted=True)	
+arr = VisArray(128, init_sorted=True)	
 vis = Visualizer(root)
 vis.set_main_array(arr)
 VisArray.set_visualizer(vis)
@@ -1460,14 +1460,75 @@ def GeneticSort(array, vis):
 			population = children
 	
 	insertion_sort(0, len(array)-1, 15)
+
+from tkinter import filedialog
+from os import path
+
+def import_sort():
+	fn = filedialog.askopenfilename(
+		title="Import Sort",
+		filetypes=(
+			(".py files", "*.py"),
+			("All files", "*.*")
+		)
+	)
+	currpath = path.abspath(__file__)
+	if fn == currpath:
+		messagebox.showerror("Error", "You cannot select the script that runs this program!")
+		return
+	
+	if not fn:
+		return
+		
+	v = {
+		"SortingAlgorithm": SortingAlgorithm,
+		"VisArray": VisArray,
+		"VisArrayList": VisArrayList
+	}
+	
+	
+	import importlib.util
+	
+	spec = importlib.util.spec_from_file_location("sortmodule", fn)
+	sortmodule = importlib.util.module_from_spec(spec)
+	
+	sortmodule.__dict__.update(v)
+	
+	try:
+		spec.loader.exec_module(sortmodule)
+	except Exception as e:
+		import traceback
+		msg = "".join(traceback.format_exception(type(e), e, e.__traceback__))
+		
+		messagebox.showerror("Error importing file", msg)
+		return
+	
+	sorts = []
+	for attr in dir(sortmodule):
+		val = getattr(sortmodule, attr)
+		if isinstance(val, SortingAlgorithm):
+			sorts.append(val)
+		
+	if not sorts:
+		messagebox.showerror("Error", "No sorts found in the provided file. Remember that sorting algorithms must use the @SortingAlgorithm decorator class to be recognized.")
+		return
+		
+	sort = sorts[-1]
+		
+	messagebox.showinfo("Success", f"Algorithm '{sort.name}' successfully imported from {fn}. The algorithm will now run.")
+	
+	return sort
+		
 		
 def choose_sort():
+	IMPORT_SORT = 99
 	group_str = [ "Enter the number corresponding to the category of sorting algorithm" ]
 	for id, sort in enumerate(algorithms):
 		num_sorts = len(algorithms[id])
 		if num_sorts > 0:
 			s = "sort" if num_sorts == 1 else "sorts"
 			group_str.append(f"{id+1} - {group_names[id]} ({len(algorithms[id])} {s})")
+	group_str.append(f"\nOr enter {IMPORT_SORT} to import from file")
 	group_str = "\n".join(group_str)
 	done = False
 	while not done:
@@ -1477,8 +1538,11 @@ def choose_sort():
 				num = simpledialog.askinteger("Choose Sort Category", group_str)
 			if 1 <= num <= len(algorithms):
 				break
+			elif num == IMPORT_SORT:
+				if (sort := import_sort()):
+					return sort
 			else:
-				messagebox.showerror("Error", "Invalid category number")
+				messagebox.showerror("Error", "Invalid option")
 		
 		algs = algorithms[num - 1]
 		sort_str = [ "Enter the number corresponding to the sorting algorithm you want to visualize", "0 - Back to category selection" ]
