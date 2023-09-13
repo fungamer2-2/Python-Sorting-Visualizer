@@ -371,7 +371,8 @@ class MarkList:
 					del self.marks[last+1:]
 					
 	def is_position_marked(self, index):
-		return index < len(self.markcounts) and self.markcounts[index] > 0
+		
+		return 0 <= index < len(self.markcounts) and self.markcounts[index] != 0
 		
 class VisArray(Collection):
 	vis = None
@@ -675,7 +676,7 @@ def CombSort(array, vis):
 	while gap > 1 or not sorted:
 		sorted = True
 		for i in range(len(array) - gap):
-			if vis.comp_swap(array, i, i + gap, 7, True):
+			if vis.comp_swap(array, i, i + gap, 1, True):
 				sorted = False
 		if gap > 1:
 			gap = gap*10//13
@@ -726,13 +727,15 @@ def ShellSort(array, vis):
 @SortingAlgorithm("Quick Sort", group="exchange", default_sleep_ratio=0.14)
 def QuickSort(array, vis):
 	def partition(start, end, pivot):
+		vis.mark(1, start)
+		vis.mark(2, end)
 		while start < end:
 			while start < end and vis.compare_values(array[start], pivot) < 0:
 				vis.mark(1, start)
 				vis.sleep(1)
 				start += 1
 			while start < end and vis.compare_values(array[end], pivot) > 0:
-				vis.mark(1, end)
+				vis.mark(2, end)
 				vis.sleep(1)
 				end -= 1
 			if start < end:
@@ -1010,6 +1013,7 @@ def RadixMSDSort(array, vis):
 			register.release()
 			
 	highest_power = vis.analyze_max_log(array, 4, 1, True)
+	print(highest_power)
 	radix(0, len(array) - 1, 4, highest_power)
 
 @SortingAlgorithm("[4, 4] Van Voorhis Sorting Network (Recursive)", group="concurrent", default_sleep_ratio=0.04)
