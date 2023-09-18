@@ -73,10 +73,10 @@ class Visualizer():
 		self.real_time = 0
 		self.timer = VisTimer(self)
 		self.analysis = False
+		self.sort_name = ""
 		
 	def set_main_array(self, arr):
 		self.main_array = arr
-		random.shuffle(self.main_array._data)
 		self.rects = [None] * len(arr)
 		self.marklist.clear()
 		self.update()
@@ -94,7 +94,7 @@ class Visualizer():
 			real_str = f"{(self.real_time * 1000):.2f} ms"
 		else:
 			real_str = f"{self.real_time:.3f} s"
-		self.stat_var.set(f"Swaps: {self.swaps}\nComparisons: {self.comps}\nMain Array Writes: {self.writes}\nAuxiliary Array Writes: {self.aux_writes}\nAuxiliary Memory: {self.extra_space} items\nReal Time: {real_str}")
+		self.stat_var.set(f"Sort Name: {self.sort_name}\nSwaps: {self.swaps}\nComparisons: {self.comps}\nMain Array Writes: {self.writes}\nAuxiliary Array Writes: {self.aux_writes}\nAuxiliary Memory: {self.extra_space} items\nReal Time: {real_str}")
 		
 	def update(self):
 		arr = self.main_array
@@ -114,8 +114,10 @@ class Visualizer():
 			self.canvas.create_rectangle(self.rects[i], width * (i / len(arr)), height, width * ((i + 1) / len(arr)), height - bar, fill=color, outline="")
 		for j in range(len(self.aux_arrays)):
 			arr = self.aux_arrays[j]
-			length = arr.capacity if type(arr) == VisArrayList else len(arr)	
-			hscale = max(arr, default=1) if arr.scale_by_max else (length if arr.hscale < 0 else arr.hscale)
+			length = arr.capacity if type(arr) == VisArrayList else len(arr)
+			if arr.scale_by_max:
+				arr.hscale = max(arr, default=1)	
+			hscale = length if arr.hscale < 0 else arr.hscale
 			if hscale < 1: #Prevent division by zero
 				hscale = 1 
 			for i in range(length):
@@ -135,6 +137,7 @@ class Visualizer():
 		for aux in self.aux_arrays:
 			aux.release()
 		self.aux_arrays.clear()
+		self.sort_name = "Verifying..."
 		self.sleep_ratio = 1
 		for i in range(len(self.main_array)):
 			if i < len(self.main_array) - 1:
@@ -146,6 +149,7 @@ class Visualizer():
 			self.mark_finish = i
 			self.sleep(1000 / len(self.main_array))
 		self.mark_finish = -1
+		self.sort_name = "Done!"
 		self.update()
 		
 	def sleep(self, ms):
@@ -367,7 +371,8 @@ class MarkList:
 				last = next((i for i in reversed(range(len(self.marks))) if self.marks[id] != -1), None)
 				if last is None:
 					self.marks.clear()
-				else:	
+					self.markcounts.clear()
+				else:
 					del self.marks[last+1:]
 					
 	def is_position_marked(self, index):
@@ -514,10 +519,11 @@ group_names = [
 ]
 
 algorithms = [[] for _ in range(len(group_names))]
+shuffles = []
 
 class CancelSort(Exception):
 	pass
-
+		
 class SortingAlgorithm:
 	
 	def __init__(self, name, *, disabled=False, group=None, default_sleep_ratio=1):
@@ -540,10 +546,67 @@ class SortingAlgorithm:
 	def run(self):
 		vis.sleep_ratio = self.default_sleep_ratio
 		try:
+			vis.sort_name = self.name
 			self.func(arr, vis)
 			vis.display_finish_animation()
 		except CancelSort:
 			vis.sleep_ratio = 1
+			
+class Shuffle:
+	
+	def __init__(self, name):
+		self.name = name
+		self.func = None
+		
+	def __call__(self, func):
+		self.func = func
+		shuffles.append(self)
+		return self
+		
+	def run(self):
+		vis.sort_name = "Shuffling..."
+		vis.sleep_ratio = 0.1
+		self.func(arr, vis)
+		vis.sort_name = ""
+		vis.clear_all_marks()
+		vis.update()
+		
+def do_shuffle(array, vis, start, end):
+	for i in range(start, end+1):
+		j = random.randint(i, end)
+		vis.swap(array, i, j, 1, True)
+		
+@Shuffle("Standard Shuffle")
+def RandomShuffle(array, vis):
+	do_shuffle(array, vis, 0, len(array)-1)
+		
+@Shuffle("Reversed")
+def ReversedShuffle(array, vis):
+	i = 0
+	j = len(array)-1
+	while i < j:
+		vis.swap(array, i, j, 1, True)
+		i += 1
+		j += 1
+		
+@Shuffle("Almost Sorted")
+def AlmostSorted(array, vis):
+	for i in range(len(array)-1):
+		if random.randint(1, 20) == 1:
+			j = random.randint(i, len(array)-1)
+			vis.swap(array, i, j, 5, True)
+			
+@Shuffle("Noisy Sorted")
+def NoisySorted(array, vis):
+	size = math.isqrt(len(array))
+	i = 0
+	while i + size < len(array):
+		do_shuffle(array, vis, i, i + size - 1)
+		i += random.randint(1, size)
+	do_shuffle(array, vis, i, len(array)-1)
+	
+########################################
+
 
 @SortingAlgorithm("Bubble Sort", group="exchange", default_sleep_ratio=0.24)		
 def BubbleSort(array, vis):
@@ -832,7 +895,7 @@ def CircleSort(array, vis):
 		
 @SortingAlgorithm("Monte Carlo Sort", group="exchange", default_sleep_ratio=1)
 def MonteCarloSort(array, vis):
-	PROB = 75
+	PROB = 80
 	for i in reversed(range(1, len(array))):
 		while True:
 			ind = random.randint(0, i)
@@ -864,26 +927,29 @@ def MergeSort(array, vis):
 		i = start
 		j = mid + 1
 		k = start
-		while i <= mid and j <= end:
-			if vis.compare_indices(array, i, j, 1, True) <= 0:
-				vis.write(tmp, k, array[i], 0, False)
+		while i <= mid and j <= end:	
+			if vis.compare_indices(array, i, j, 0, True) <= 0:
+				vis.write(tmp, k, array[i], 1, True)
 				i += 1
 			else:
-				vis.write(tmp, k, array[j], 0, False)
+				vis.write(tmp, k, array[j], 1, True)
 				j += 1
+			
 			k += 1
+		
 		while i <= mid:
 			vis.mark(1, i)
-			vis.write(tmp, k, array[i], 0, False)
+			vis.write(tmp, k, array[i], 1, True)
 			vis.sleep(1)
 			i += 1
 			k += 1
 		while j <= end:
 			vis.mark(2, j)
-			vis.write(tmp, k, array[j], 0, False)
+			vis.write(tmp, k, array[j], 1, True)
 			vis.sleep(1)
 			j += 1
 			k += 1
+		tmp.clear_all_marks()
 		vis.clear_mark(2)
 		i = start
 		while i <= end:
@@ -942,6 +1008,77 @@ def PigeonholeSort(array, vis):
 			vis.write(holes, count, holes[count] - 1, 0.5, True)
 			vis.write(array, index, count + mini, 0.5, True)
 			index += 1
+			
+@SortingAlgorithm("Flash Sort", group="distribution", default_sleep_ratio=0.07)
+def FlashSort(array, vis):
+	def insertion_sort(start, end, sleep=1):
+		for i in range(start + 1, end + 1):
+			tmp = array[i]
+			j = i - 1
+			while j >= start and vis.compare_values(array[j], tmp) > 0:
+				vis.write(array, j + 1, array[j], sleep, True)
+				j -= 1
+			vis.write(array, j + 1, tmp, sleep, True)
+			
+	def sort(start, end):
+		length = end - start + 1
+		if length <= 1:
+			return
+		m = len(array)//5 + 2
+		lo = float("inf")
+		hi = -float("inf")
+		max_ind = 0
+		for i in range(start, end+1):
+			vis.mark(1, i)
+			if vis.compare_values(array[i], hi) > 0:
+				hi = array[i]
+				max_ind = i
+			elif vis.compare_values(array[i], lo) < 0:
+				lo = array[i]
+			vis.sleep(1)
+		if lo == hi:
+			return
+		L = VisArray(m, scale_by_max=True)
+		c = (m - 1) / (hi - lo)
+		for i in range(start, end+1):
+			vis.mark(1, i)
+			K = int((array[i] - lo) * c)
+			vis.write(L, K, L[K] + 1, 1, True)
+		L.override_hscale(sum(L))
+		for i in range(1, m):
+			vis.write(L, i, L[i] + L[i - 1], 1, True)
+		vis.swap(array, 0, max_ind, 1, True)
+		vis.clear_mark(1)
+		vis.clear_mark(2)	
+		moves = 0
+		j = 0
+		K = m - 1
+		while moves < length:
+			with vis.timer:
+				while j >= L[K]:
+					j += 1
+					K = int((array[j+start] - lo) * c)
+			evicted = array[j]
+			while j < L[K]:
+				K = int((evicted - lo) * c)
+				location = L[K] + start - 1
+				tmp = array[location]
+				vis.write(array, location, evicted, 0.5, True)
+				evicted = tmp
+				vis.write(L, K, L[K] - 1, 0.5, True)
+				moves += 1
+		L.clear_all_marks()
+		threshold = max(30, int(1.25 * (length / m + 1)))
+		K = m - 2
+		while K >= 0:
+			class_size = L[K + 1] - L[K]
+			if class_size > threshold:
+				sort(L[K], L[K + 1] - 1)
+			K -= 1
+		insertion_sort(start, end)
+		L.release()
+						
+	sort(0, len(array)-1)
 			
 @SortingAlgorithm("Bitonic Sort", group="concurrent", default_sleep_ratio=0.1)
 def BitonicSort(array, vis):
@@ -1538,7 +1675,7 @@ def import_sort():
 		
 	sort = sorts[-1]
 		
-	messagebox.showinfo("Success", f"Algorithm '{sort.name}' successfully imported from {fn}. The algorithm will now run.")
+	messagebox.showinfo("Success", f"Algorithm '{sort.name}' successfully imported from {fn}.")
 	
 	return sort
 		
@@ -1583,8 +1720,27 @@ def choose_sort():
 			else:
 				messagebox.showerror("Error", "Invalid sort number")	
 			
-	return algs[num - 1]		
-
+	return algs[num - 1]
+	
+def choose_shuffle():
+	shuffle_str = [ "Enter the number corresponding to the shuffle" ]
+	for i, shuffle in enumerate(shuffles):
+		shuffle_str.append(f"{i+1} - {shuffle.name}")
+	shuffle_str = "\n".join(shuffle_str)
+	while True:
+		num = None	
+		while num is None:
+			num = simpledialog.askinteger("Choose Shuffle", shuffle_str)
+		if 1 <= num <= len(shuffles):
+			return shuffles[num - 1]
+		else:
+			messagebox.showerror("Error", "Invalid sort number")	
+			
 sort = choose_sort()
+shuffle = choose_shuffle()
+vis.update()
+time.sleep(0.25)
+shuffle.run()
+time.sleep(0.5)
 sort.run()
 root.mainloop()
