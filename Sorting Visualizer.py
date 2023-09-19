@@ -88,6 +88,7 @@ class Visualizer():
 		self.swaps = 0
 		self.extra_space = 0
 		self.mark_finish = -1
+		self.real_time = 0
 		
 	def update_statistics(self):
 		if self.real_time < 1:
@@ -568,6 +569,7 @@ class Shuffle:
 		self.func(arr, vis)
 		vis.sort_name = ""
 		vis.clear_all_marks()
+		vis.reset_stats()
 		vis.update()
 		
 def do_shuffle(array, vis, start, end):
