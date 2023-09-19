@@ -592,10 +592,16 @@ def ReversedShuffle(array, vis):
 		
 @Shuffle("Almost Sorted")
 def AlmostSorted(array, vis):
+	swapped = False
 	for i in range(len(array)-1):
 		if random.randint(1, 20) == 1:
+			swapped = True
 			j = random.randint(i, len(array)-1)
 			vis.swap(array, i, j, 5, True)
+	if not swapped:
+		i = random.randint(0, len(array)-1)
+		j = random.randint(0, len(array)-1)
+		vis.swap(array, i, j, 5, True)
 			
 @Shuffle("Noisy Sorted")
 def NoisySorted(array, vis):
@@ -965,6 +971,71 @@ def MergeSort(array, vis):
 			merge(start, mid, end)
 			
 	wrapper(0, len(array) - 1)
+	
+@SortingAlgorithm("Rotate Merge Sort", group="merge", default_sleep_ratio=0.15)
+def RotateMergeSort(array, vis):
+	def blockswap(a, b, n):
+		for i in range(n):
+			vis.swap(array, a + i, b + i, 1, True)
+			
+	def rotate(a, m, b):
+		l = m - a + 1
+		r = b - m
+		while l > 0 and r > 0:
+			if l > r:
+				blockswap(m - r + 1, m + 1, r)
+				b -= r
+				m -= r
+				l -= r
+			else:
+				blockswap(a, m + 1, l)
+				a += l
+				m += l
+				r -= l
+	
+	def binary_search(start, end, value, left):
+		t = 1 - int(left)
+		while start < end:
+			mid = (start + end) // 2
+			vis.mark(1, start)
+			vis.mark(2, mid)
+			vis.mark(3, end)
+			if vis.compare_values(array[mid], value) < t:
+				start = mid + 1
+			else:
+				end = mid
+			vis.sleep(2)
+		vis.clear_all_marks()
+		return start
+		
+	def rotate_merge(a, m, b):
+		if a >= b:
+			pass
+		if m-a+1 >= b-m:
+			m1 = a+(m-a+1)//2
+			m2 = binary_search(m + 1, b + 1, array[m1], True)
+			m3 = m1+(m2-m-1)
+		else:
+			m2 = (m+b)//2+1
+			m1 = binary_search(a, m + 1, array[m2], True)
+			m3 = m2-(m-m1+1)
+			m2 += 1
+		
+		rotate(m1, m, m2-1)
+		
+		if a < m1 and m1 < m3:
+			rotate_merge(a, m1-1, m3-1)
+		if m3 + 1 < m2 and m2 <= b:
+			rotate_merge(m3+1, m2-1, b)
+	
+	def sort(a, b):
+		if a < b:
+			m = (a+b)//2
+			sort(a, m)
+			sort(m+1, b)
+			rotate_merge(a, m, b)
+	
+	sort(0, len(array)-1)
 	
 @SortingAlgorithm("Counting Sort", group="distribution", default_sleep_ratio=0.07)
 def CountingSort(array, vis):
