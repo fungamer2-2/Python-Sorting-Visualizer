@@ -375,8 +375,7 @@ class MarkList:
 				else:
 					del self.marks[last+1:]
 					
-	def is_position_marked(self, index):
-		
+	def is_position_marked(self, index):	
 		return 0 <= index < len(self.markcounts) and self.markcounts[index] != 0
 		
 class VisArray(Collection):
@@ -565,7 +564,7 @@ class Shuffle:
 		
 	def run(self):
 		vis.sort_name = "Shuffling..."
-		vis.sleep_ratio = 0.1
+		vis.sleep_ratio = len(arr)/2048
 		self.func(arr, vis)
 		vis.sort_name = ""
 		vis.clear_all_marks()
@@ -587,7 +586,7 @@ def ReversedShuffle(array, vis):
 	while i < j:
 		vis.swap(array, i, j, 1, True)
 		i += 1
-		j += 1
+		j -= 1
 		
 @Shuffle("Almost Sorted")
 def AlmostSorted(array, vis):
@@ -1739,7 +1738,7 @@ def choose_shuffle():
 sort = choose_sort()
 shuffle = choose_shuffle()
 vis.update()
-time.sleep(0.25)
+time.sleep(1)
 shuffle.run()
 time.sleep(0.5)
 sort.run()
