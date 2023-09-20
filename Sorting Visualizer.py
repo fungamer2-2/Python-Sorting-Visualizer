@@ -1009,8 +1009,6 @@ def RotateMergeSort(array, vis):
 		return start
 		
 	def rotate_merge(a, m, b):
-		if a >= b:
-			pass
 		if m-a+1 >= b-m:
 			m1 = a+(m-a+1)//2
 			m2 = binary_search(m + 1, b + 1, array[m1], True)
