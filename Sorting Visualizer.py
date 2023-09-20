@@ -393,15 +393,18 @@ class VisArray(Collection):
 			self._data = [0] * n
 		self.scale_by_max = scale_by_max
 		self.hscale = -1
+		
 		if self.aux:
-			self.vis.extra_space += n
+			self._change_extra_space(n)
 			if show_aux:
 				self.vis.aux_arrays.append(self)
 		if self.aux:
 			self.marklist = MarkList()
 		else:
 			self.marklist = None
- 
+ 	
+	def _change_extra_space(self, n):
+		self.vis.extra_space += n		
 				
 	def override_hscale(self, hscale):
 		self.hscale = hscale
@@ -429,7 +432,7 @@ class VisArray(Collection):
 	def release(self):
 		if self in self.vis.aux_arrays:
 			self.vis.aux_arrays.remove(self)
-			self.vis.extra_space -= len(self._data)
+			self._change_extra_space(len(self._data))
 			self._data = []
 				
 	def inc_writes(self, amount=1):
@@ -476,7 +479,7 @@ class VisArrayList(VisArray, MutableSequence):
 		return True
 		
 	def insert(self, index, item):
-		self.vis.extra_space += 1
+		self._change_extra_space(1)
 		with self.vis.timer:
 			self._data.insert(index, item)
 			self.vis.aux_writes += 1
@@ -484,16 +487,16 @@ class VisArrayList(VisArray, MutableSequence):
 			self.capacity *= 2
 		
 	def __delitem__(self, index):
-		self.vis.extra_space -= 1
+		self._change_extra_space(-1)
 		with self.vis.timer:
 			del self._data[index]
 		
 	def clear(self):
-		self.vis.extra_space -= len(self._data)
+		self._change_extra_space(-len(self._data))
 		self._data.clear()
 		
 	def __del__(self):
-		self.vis.extra_space -= len(self._data)
+		self._change_extra_space(-len(self._data))
 		if self in self.vis.aux_arrays:
 			self.vis.aux_arrays.remove(self) 
 		
@@ -738,7 +741,25 @@ def BinaryInsertionSort(array, vis):
 			vis.write(array, j + 1, array[j], 1, True)
 			j -= 1
 		vis.write(array, j + 1, tmp, 1, True)
-		
+
+@SortingAlgorithm("Shell Sort", group="insertion", default_sleep_ratio=0.11)
+def ShellSort(array, vis):
+	gap = len(array) // 2
+	while gap >= 1:
+		for i in range(gap, len(array)):
+			tmp = array[i]
+			j = i - gap
+			vis.clear_mark(2)
+			while j >= 0 and vis.compare_values(array[j], tmp) >= 0:
+				if gap > 1:
+					vis.mark(2, j)
+				vis.write(array, j + gap, array[j], 1, True)
+				j -= gap
+			if gap > 1 and j >= 0:
+				vis.mark(2, j)
+			vis.write(array, j + gap, tmp, 1, True)
+		gap //= 2	
+
 @SortingAlgorithm("Comb Sort", group="exchange", default_sleep_ratio=0.14)
 def CombSort(array, vis):
 	gap = len(array) * 10 // 13
@@ -775,24 +796,6 @@ def GnomeSort(array, vis):
 				i -= 1
 		else:
 			i += 1
-			
-@SortingAlgorithm("Shell Sort", group="insertion", default_sleep_ratio=0.11)
-def ShellSort(array, vis):
-	gap = len(array) // 2
-	while gap >= 1:
-		for i in range(gap, len(array)):
-			tmp = array[i]
-			j = i - gap
-			vis.clear_mark(2)
-			while j >= 0 and vis.compare_values(array[j], tmp) >= 0:
-				if gap > 1:
-					vis.mark(2, j)
-				vis.write(array, j + gap, array[j], 1, True)
-				j -= gap
-			if gap > 1:
-				vis.mark(2, j)
-				vis.write(array, j + gap, tmp, 1, True)
-		gap //= 2
 				
 @SortingAlgorithm("Quick Sort", group="exchange", default_sleep_ratio=0.14)
 def QuickSort(array, vis):
@@ -1185,11 +1188,26 @@ def RadixSort(array, vis):
 			digit = vis.get_digit(array[i], p, 4)
 			registers[digit].append(array[i])
 			vis.sleep(1)
-		j = 0
+		
+		tmp = []
 		for register in registers:
-			for i in range(len(register)):
-				vis.write(array, j, register[i], 1, True)
-				j += 1
+			tmp.extend(register)
+		tmpflag = [False]*len(array)
+		
+		for i in range(len(array)):
+			register = i % 4
+			pos = register*len(array)//4 + i//4
+			if not tmpflag[pos]:
+				vis.write(array, pos, tmp[pos], 0, False)
+				tmpflag[pos] = True
+			vis.mark(register, pos)
+			if register == 3:
+				vis.sleep(4)
+		for i in range(len(array)):
+			if not tmpflag[i]:
+				vis.write(array, pos, tmp[pos], 1, False)
+		vis.clear_all_marks()
+		
 		for register in registers:
 			register.clear()
 			
